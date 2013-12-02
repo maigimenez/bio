@@ -1,6 +1,0 @@
-import argparse
-
-if __name__=="__main__":
-    parser = argparse.ArgumentParser(description="Solve the ROC curve")
-    parser.add_argument("-c","--clients", type=argparse.FileType('r'), help="Clients filename")
- 
