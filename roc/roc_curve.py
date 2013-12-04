@@ -35,8 +35,12 @@ def get_data():
 
 
 def solve_roc():
+    scores = []
     c_score, i_score = get_data()
-    print c_score
+    scores = zip(['c']*len(c_score),c_score)
+    print len(scores)
+    scores.extend(zip(['i']*len(i_score),i_score))
+    print len(scores)
 
 
 if __name__ == "__main__":
