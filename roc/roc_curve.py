@@ -1,6 +1,6 @@
 import argparse
-import numpy
-
+import numpy as np
+import matplotlib.pyplot as plt
 
 def load_default():
     print "TODO: load default scores"
@@ -24,8 +24,10 @@ def get_data():
         if args.impersonators_file is None or args.clients_file is None:
             load_default()
         else:
-            c_id, c_score = numpy.loadtxt(args.clients_file, unpack=True)
-            i_id, i_score = numpy.loadtxt(args.impersonators_file, unpack=True)
+            c_id, c_score = np.loadtxt(args.clients_file, unpack=True,
+                                       dtype=float)
+            i_id, i_score = np.loadtxt(args.impersonators_file, unpack=True,
+                                       dtype=float)
             return c_score, i_score
 
     except SystemExit:
@@ -35,13 +37,27 @@ def get_data():
 
 
 def solve_roc():
-    scores = []
     c_score, i_score = get_data()
-    scores = zip(['c']*len(c_score),c_score)
-    print len(scores)
-    scores.extend(zip(['i']*len(i_score),i_score))
-    print len(scores)
 
+    # Get all possible threasholds and inserts a 0.
+    thr = np.insert(np.unique(np.concatenate([c_score, i_score])), 0, 0)
+
+    # Get false negative ratio
+    fnr = np.divide(map(lambda x: np.sum(c_score <= x), thr),
+                    float(len(c_score)))
+    # Get true positive ratio
+    tpr = 1.0 - fnr
+    # Get false positive ratio
+    fpr = np.divide(map(lambda x: np.sum(i_score > x), thr),
+                    float(len(i_score)))
+    # Get true negative ratio
+    tnr = 1.0 - fpr
+    print fpr
+    print tpr
+
+    plt.fill(fpr, tpr, 'r')
+    plt.grid(True)
+    plt.show()
 
 if __name__ == "__main__":
     solve_roc()
