@@ -1,10 +1,12 @@
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
+
+from roc_data import RocData
+
 
 def load_default():
     print "TODO: load default scores"
-    return None, None
+    return None, None, None, False, False, False
 
 
 def get_data():
@@ -20,50 +22,66 @@ def get_data():
                         help="Impersonators filename", metavar="I",
                         dest="impersonators_file")
     parser.add_argument("-fp", type=float,
-                        help="False positive", metavar="F",
+                        help="False positive", metavar="FP",
                         dest="fp")
+    parser.add_argument("-fn", type=float,
+                        help="False negative", metavar="FN",
+                        dest="fn")
+    parser.add_argument("-p","--plot", action='store_true',
+                        help="Make plot",
+                        dest="plot")
+    parser.add_argument("-a","--aur", action='store_true',
+                        help="Get area under the ROC curve",
+                        dest="aur")
+    parser.add_argument("-d","--dprime", action='store_true',
+                        help="Get dprime",
+                        dest="dprime")
+
+
     try:
         args = parser.parse_args()
         if args.impersonators_file is None or args.clients_file is None:
             load_default()
         else:
-            print args.fp
             c_id, c_score = np.loadtxt(args.clients_file, unpack=True,
                                        dtype=float)
             i_id, i_score = np.loadtxt(args.impersonators_file, unpack=True,
                                        dtype=float)
-            return c_score, i_score
+            data = RocData("",c_score,i_score)
+            return data, args.fp, args.fn, args.plot, args.aur, args.dprime
 
     except SystemExit:
         #TODO: load default scores filenames
         print "Default"
         load_default()
 
- 
-def solve_roc():
-    c_score, i_score = get_data()
 
-    # Get all possible threasholds and inserts a 0.
-    thr = np.insert(np.unique(np.concatenate([c_score, i_score])), 0, 0)
+def find_nearest_pos(scores, value):
+    return (np.abs(scores-value)).argmin()
 
-    # Get false negative ratio
-    fnr = np.divide(map(lambda x: np.sum(c_score <= x), thr),
-                    float(len(c_score)))
-    # Get true positive ratio
-    tpr = 1.0 - fnr
-    # Get false positive ratio
-    fpr = np.divide(map(lambda x: np.sum(i_score > x), thr),
-                    float(len(i_score)))
-    # Get true negative ratio
-    tnr = 1.0 - fpr
-    print fpr
-    print tpr
 
-    #plt.fill(fpr, tpr, 'r')
-    #plt.grid(True)
-    #plt.show()
+def get_fn(data,fp):
+    pos = find_nearest_pos(data.fpr, fp)
+    print("Dado el valor de fp: {0}, el valor de fnr es: {1} y el umbral: {2} "
+          .format(fp,data.fnr[pos],data.thrs[pos]))
+
+
+def get_fp(data,fn):
+    pos = find_nearest_pos(data.fnr, fn)
+    print("Dado el valor de fn: {0}, el valor de fp es: {1} y el umbral: {2} "
+          .format(fn,data.fpr[pos],data.thrs[pos]))
+
 
 if __name__ == "__main__":
-    solve_roc()
-    if get_fn():
-        pass
+    data, fp, fn, plot, aur, dprime = get_data() 
+    data.solve_ratios()
+    if fp:
+        get_fn(data,fp)
+    if fn:
+        get_fp(data,fn)
+    if aur:
+        data.aur(plot)
+    if dprime:
+        data.dprime(plot)
+    elif plot:
+        data.plot()
