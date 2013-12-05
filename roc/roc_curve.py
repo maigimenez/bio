@@ -19,11 +19,15 @@ def get_data():
     parser.add_argument("-i", "--impersonators", type=argparse.FileType('r'),
                         help="Impersonators filename", metavar="I",
                         dest="impersonators_file")
+    parser.add_argument("-fp", type=float,
+                        help="False positive", metavar="F",
+                        dest="fp")
     try:
         args = parser.parse_args()
         if args.impersonators_file is None or args.clients_file is None:
             load_default()
         else:
+            print args.fp
             c_id, c_score = np.loadtxt(args.clients_file, unpack=True,
                                        dtype=float)
             i_id, i_score = np.loadtxt(args.impersonators_file, unpack=True,
@@ -35,7 +39,7 @@ def get_data():
         print "Default"
         load_default()
 
-
+ 
 def solve_roc():
     c_score, i_score = get_data()
 
@@ -55,9 +59,11 @@ def solve_roc():
     print fpr
     print tpr
 
-    plt.fill(fpr, tpr, 'r')
-    plt.grid(True)
-    plt.show()
+    #plt.fill(fpr, tpr, 'r')
+    #plt.grid(True)
+    #plt.show()
 
 if __name__ == "__main__":
     solve_roc()
+    if get_fn():
+        pass
