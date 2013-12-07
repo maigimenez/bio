@@ -83,5 +83,5 @@ if __name__ == "__main__":
         data.aur(plot)
     if dprime:
         data.dprime(plot)
-    elif plot:
+    elif not aur and not dprime and plot:
         data.plot()
