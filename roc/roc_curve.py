@@ -1,12 +1,24 @@
 import argparse
 import numpy as np
+import ConfigParser
 
 from roc_data import RocData
 
 
 def load_default():
-    print "TODO: load default scores"
-    return None, None, None, False, False, False
+    # Read configuration file
+    config = ConfigParser.ConfigParser()
+    config.read('config.ini')
+    # Get path where default recognition scores are
+    clients_file = config.get('Default BioSystem', 'Clients')
+    impersonators_file = config.get('Default BioSystem', 'Impersonators')
+    c_id, c_score = np.loadtxt(clients_file, unpack=True,
+                               dtype=float)
+    i_id, i_score = np.loadtxt(impersonators_file, unpack=True,
+                               dtype=float)
+    data = RocData("",c_score,i_score)
+
+    return data
 
 
 def get_data():
@@ -36,25 +48,21 @@ def get_data():
     parser.add_argument("-d","--dprime", action='store_true',
                         help="Get dprime",
                         dest="dprime")
-
-
     try:
         args = parser.parse_args()
         if args.impersonators_file is None or args.clients_file is None:
-            load_default()
+            data = load_default()
         else:
             c_id, c_score = np.loadtxt(args.clients_file, unpack=True,
                                        dtype=float)
             i_id, i_score = np.loadtxt(args.impersonators_file, unpack=True,
                                        dtype=float)
             data = RocData("",c_score,i_score)
-            return data, args.fp, args.fn, args.plot, args.aur, args.dprime
+        return data, args.fp, args.fn, args.plot, args.aur, args.dprime
 
     except SystemExit:
-        #TODO: load default scores filenames
-        print "Default"
-        load_default()
-
+        data = load_default()
+        return data, False, False, False, False, False
 
 def find_nearest_pos(scores, value):
     return (np.abs(scores-value)).argmin()
@@ -74,7 +82,7 @@ def get_fp(data,fn):
 
 if __name__ == "__main__":
     data, fp, fn, plot, aur, dprime = get_data() 
-    data.solve_ratios()
+    if data: data.solve_ratios()
     if fp:
         get_fn(data,fp)
     if fn:
