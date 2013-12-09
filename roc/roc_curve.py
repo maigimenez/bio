@@ -1,7 +1,7 @@
 import argparse
 import numpy as np
 import ConfigParser
-
+from scipy import interpolate
 from roc_data import RocData
 
 
@@ -64,28 +64,58 @@ def get_data():
         data = load_default()
         return data, False, False, False, False, False
 
-def find_nearest_pos(scores, value):
-    return (np.abs(scores-value)).argmin()
 
 
 def get_fn(data,fp):
-    pos = find_nearest_pos(data.fpr, fp)
+    if fp in data.fpr:
+        pos =  np.where(data.fpr==fp)
+        fnr, thr =  np.mean(data.fnr[pos]), np.mean(data.thrs[pos])
+    else:
+        # Set data for interpolation
+        x = np.sort(data.fpr)
+        # Set new arange whichs includes the wanted value
+        xnew = np.arange(fp, x[-1])
+        # Interpolate the FN
+        y = np.sort(data.tpr)
+        f = interpolate.interp1d(x, y)
+        tpr = f(xnew)[0]
+        fnr = 1 - tpr
+        # Interpolate the threashold
+        y = np.sort(data.thrs)
+        f = interpolate.interp1d(x, y)
+        thr = f(xnew)[0]
     print("Dado el valor de fp: {0}, el valor de fnr es: {1} y el umbral: {2} "
-          .format(fp,data.fnr[pos],data.thrs[pos]))
+          .format(fp,fnr,thr))
 
 
 def get_fp(data,fn):
-    pos = find_nearest_pos(data.fnr, fn)
-    print("Dado el valor de fn: {0}, el valor de fp es: {1} y el umbral: {2} "
-          .format(fn,data.fpr[pos],data.thrs[pos]))
+    if fn in data.fnr:
+        pos =  np.where(data.fnr==fn)
+        fpr, thr =  np.mean(data.fpr[pos]), np.mean(data.thrs[pos])
+    else:
+        # Set data for interpolation
+        x = np.sort(data.tpr)
+        # Set new arange whichs includes the wanted value
+        xnew = np.arange(fn, x[-1])
+        # Interpolate the FN
+        y = np.sort(data.fpr)
+        f = interpolate.interp1d(x, y)
+        fpr = f(xnew)[0]
+        # Interpolate the threashold
+        y = np.sort(data.thrs)
+        f = interpolate.interp1d(x, y)
+        thr = f(xnew)[0]
+    print("Dado el valor de fn: {0}, el valor de fpr es: {1} y el umbral: {2} "
+          .format(fn,fpr,thr))
+
 
 
 if __name__ == "__main__":
     data, fp, fn, plot, aur, dprime = get_data() 
-    if data: data.solve_ratios()
-    if fp:
+    data.solve_ratios()
+    if fp >= 0.0:
         get_fn(data,fp)
-    if fn:
+    if fn >= 0.0:
         get_fp(data,fn)
     if aur:
         data.aur(plot)

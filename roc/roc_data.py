@@ -27,9 +27,9 @@ class RocData(object):
                                  self.thrs), float(len(self.c_score)))
         # Get true negative ratio
         self.tnr = 1.0 - self.fpr
-
+        
     def plot(self):
-        plt.plot(self.fpr, self.tpr, linewidth=2.0)
+        plt.plot(self.fpr, self.tpr, '-o',linewidth=2.0)
         plt.xlabel("FP")
         plt.ylabel("1-FN")
         plt.show()
