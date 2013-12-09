@@ -16,8 +16,8 @@ class RocData(object):
         self.c_score = c_score
         self.i_score = i_score
         # Get all possible threasholds and inserts a 0.
-        self.thrs = np.insert(np.unique(
-                np.concatenate([self.c_score, self.i_score])),0, 0)
+        self.thrs = np.unique(np.insert(
+                np.concatenate([self.c_score, self.i_score]),0, 0))
         self.fpr = None
         self.fnr = None
         self.tpr = None
@@ -25,13 +25,11 @@ class RocData(object):
         
     def solve_ratios(self):
         # Get false negative ratio
-        self.fnr = np.divide(map(lambda x: np.sum(self.c_score <= x), self.thrs),
-                             float(len(self.c_score)))
+        self.fnr = np.divide(map(lambda x: np.sum(self.c_score <= x), self.thrs),float(len(self.c_score)))
         # Get true positive ratio
         self.tpr = 1.0 - self.fnr
         # Get false positive ratio
-        self.fpr = np.divide(map(lambda x: np.sum(self.i_score > x), self.thrs),
-                             float(len(self.i_score)))
+        self.fpr = np.divide(map(lambda x: np.sum(self.i_score > x), self.thrs),float(len(self.c_score)))
         # Get true negative ratio
         self.tnr = 1.0 - self.fpr
 
@@ -46,7 +44,8 @@ class RocData(object):
 
 
     def aur(self,plot):
-        aur = trapz(self.tpr, np.sort(self.fpr))
+        aur = np.abs(np.trapz(self.tpr, x=self.fpr))
+        #print simps(self.tpr, x=self.fpr)
         if plot:
             a,b = self.fpr[-1], self.fpr[0]
             fig, ax = plt.subplots()
