@@ -6,18 +6,20 @@ from roc_data import RocData
 
 
 def load_default():
+    """ Load a default set of data """
     # Read configuration file
     config = ConfigParser.ConfigParser()
     config.read('config.ini')
     # Get path where default recognition scores are
     clients_file = config.get('Default BioSystem', 'Clients')
     impersonators_file = config.get('Default BioSystem', 'Impersonators')
+    # Load default data
     c_id, c_score = np.loadtxt(clients_file, unpack=True,
                                dtype=float)
     i_id, i_score = np.loadtxt(impersonators_file, unpack=True,
                                dtype=float)
+    # Init RocData
     data = RocData("",c_score,i_score)
-
     return data
 
 
@@ -26,13 +28,14 @@ def get_data():
     If there are no arguments in command line load default
 
     """
+    # Add arguments 
     parser = argparse.ArgumentParser(description="Solve the ROC curve")
     parser.add_argument("-c", "--clients", type=argparse.FileType('r'),
                         help="Clients filename", metavar="C",
                         dest="clients_file")
     parser.add_argument("-i", "--impersonators", type=argparse.FileType('r'),
-                        help="Impersonators filename", metavar="I",
-                        dest="impersonators_file")
+                        help="Impostors filename", metavar="I",
+                        dest="impostors_file")
     parser.add_argument("-fp", type=float,
                         help="False positive", metavar="FP",
                         dest="fp")
@@ -49,13 +52,16 @@ def get_data():
                         help="Get dprime",
                         dest="dprime")
     try:
+        # Parse arguments
         args = parser.parse_args()
+        # If some filename is missing -> load default arguments
         if args.impersonators_file is None or args.clients_file is None:
             data = load_default()
+        # Load user arguments
         else:
             c_id, c_score = np.loadtxt(args.clients_file, unpack=True,
                                        dtype=float)
-            i_id, i_score = np.loadtxt(args.impersonators_file, unpack=True,
+            i_id, i_score = np.loadtxt(args.impostors_file, unpack=True,
                                        dtype=float)
             data = RocData("",c_score,i_score)
         return data, args.fp, args.fn, args.plot, args.aur, args.dprime
