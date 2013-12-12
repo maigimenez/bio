@@ -58,9 +58,17 @@ def aprox_AUR(clients, impostors):
     c_scores = clients[:,:-1]
     i_scores = impostors[:,:-1]
     num_scores = c_scores.shape[1]
-    #print c_scores.shape,i_scores.shape, num_scores
-    res = np.array([c-i for c in c_scores for i in i_scores])
+    heaviside = lambda x: 0.5 if x == 0 else 0 if x < 0 else 1
 
+    #sum_scores = np.sum(np.array([c-i for c in c_scores for i in i_scores]))
+    sum_scores = 0.0
+    for c in c_scores:
+        for i in i_scores:
+            for score in xrange(num_scores):
+                sum_scores += heaviside(c[score]-i[score])
+    #sum_scores = sum(sum_scores)
+    aprox_aur = sum_scores / float(c_scores.shape[0] * i_scores.shape[0])
+    print sum_scores,aprox_aur
 
 if __name__ == "__main__":
     (c_train,i_train),(c_test,i_test), p= get_data() 
