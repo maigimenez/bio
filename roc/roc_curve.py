@@ -46,8 +46,11 @@ def get_data():
                         help="Make plot",
                         dest="plot")
     parser.add_argument("-a","--aur", action='store_true',
-                        help="Get area under the ROC curve",
+                        help="Get area under the ROC curve using trapezoidal rule ",
                         dest="aur")
+    parser.add_argument("-aA","--aurAprox", action='store_true',
+                        help="Get area under the ROC curve using an aproximation",
+                        dest="aur_aprox")
     parser.add_argument("-d","--dprime", action='store_true',
                         help="Get dprime",
                         dest="dprime")
@@ -55,7 +58,7 @@ def get_data():
         # Parse arguments
         args = parser.parse_args()
         # If some filename is missing -> load default arguments
-        if args.impersonators_file is None or args.clients_file is None:
+        if args.impostors_file is None or args.clients_file is None:
             data = load_default()
         # Load user arguments
         else:
@@ -64,11 +67,12 @@ def get_data():
             i_id, i_score = np.loadtxt(args.impostors_file, unpack=True,
                                        dtype=float)
             data = RocData("",c_score,i_score)
-        return data, args.fp, args.fn, args.plot, args.aur, args.dprime
+        return (data, args.fp, args.fn, args.plot, args.aur, args.aur_aprox, 
+                args.dprime)
 
     except SystemExit:
         data = load_default()
-        return data, False, False, False, False, False
+        return data, False, False, False, False, False, False
 
 
 
@@ -117,7 +121,7 @@ def get_fp(data,fn):
 
 
 if __name__ == "__main__":
-    data, fp, fn, plot, aur, dprime = get_data() 
+    data, fp, fn, plot, aur,aur_aprox, dprime = get_data() 
     data.solve_ratios()
     if fp >= 0.0:
         get_fn(data,fp)
@@ -125,7 +129,9 @@ if __name__ == "__main__":
         get_fp(data,fn)
     if aur:
         data.aur(plot)
+    if aur_aprox:
+        data.aur_aprox(plot)
     if dprime:
         data.dprime(plot)
-    elif not aur and not dprime and plot:
+    elif not aur and not aur_aprox  and not dprime and plot:
         data.plot()
