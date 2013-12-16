@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*-
 import argparse
 import numpy as np
 from sympy.functions.special.delta_functions import Heaviside
 import matplotlib.pyplot as plt
-
+import itertools
+from sympy import *
 
 def load_default():
     print "TODO: load default scores"
@@ -47,13 +49,14 @@ def get_data():
 def score_norm():
     # u is the slope and v is the displacement of the sigmoid. z is the score
     sigmoid = lambda u,v,z: 1 / (1 + np.exp(u*(v-z)))
+
     # Fused scores restictions:
     # sum(w) = 1 for all w
     # w >= 0 for all w
     
     # f(u,v,w)(z) = wT * sigmoid(u,v)(z) in [0,1]  
 
-def aprox_AUR(clients, impostors):
+def aprox_AUR(w, clients, impostors):
     # Delete clients/impostors tag
     c_scores = clients[:,:-1]
     i_scores = impostors[:,:-1]
@@ -65,14 +68,52 @@ def aprox_AUR(clients, impostors):
     for c in c_scores:
         for i in i_scores:
             for score in xrange(num_scores):
-                sum_scores += heaviside(c[score]-i[score])
+                #print w[score]
+                sum_scores += heaviside(w[score]*(c[score]-i[score]))
     #sum_scores = sum(sum_scores)
     aprox_aur = sum_scores / float(c_scores.shape[0] * i_scores.shape[0])
-    print sum_scores,aprox_aur
+    return aprox_aur
+
+
+def aprox_w(clients, impostors):
+    aurW = {}
+    wp = itertools.product(np.arange(0,1.1,0.1), repeat=2)
+    weights = [ w for w in wp if sum(w)==1.0]
+    for w in weights:
+        aur = aprox_AUR(w, clients,impostors)
+        if aur in aurW.keys():
+            aurW[aur].append(w)
+        else:
+            aurW[aur] = [w]
+
+    #for k,values in aurW.iteritems():
+    #    print ("AUR = %4f " % k)
+    #    for v in values:
+    #        print("\t [ %.2f, %.2f ]" % (v[0], v[1]))
+
+    maxAUR = max(aurW.keys())
+    print ("El valor máximo del área bajo la curva ROC= %4f \nCon los pesos:" % maxAUR)
+    for v in aurW[maxAUR]:
+        print("  [ %.2f, %.2f ]" % (v[0], v[1]))
+
+
+def min_AUR(clients, impostors):
+    # Delete clients/impostors tag
+    c_scores = clients[:,:-1]
+    i_scores = impostors[:,:-1]
+
+    # Score normalization sigmoid
+    norm_sigmoid = lambda u,v,z: 1 / (1 + np.exp(u*(v-z)))
+    sigmoid = lambda beta,z: 1 / (1 + np.exp(-(beta-z)))
+
+    z = Symbol('z')
+    diff(sigmoid)
+
+    #derJ_U = w * 
 
 if __name__ == "__main__":
     (c_train,i_train),(c_test,i_test), p= get_data() 
-    aprox_AUR(c_train,i_train)
+    aprox_w(c_train,i_train)
     if p:
         f, (ax1, ax2) = plt.subplots(2,sharex=True, sharey=True)
         #c_train = train[train[:,2]==1]
