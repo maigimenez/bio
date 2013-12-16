@@ -34,7 +34,13 @@ def get_data():
         else:
             train  = np.loadtxt(args.train_file)
             test = np.loadtxt(args.test_file)
-            #return train, test, args.plot
+
+            # Normalization
+            for score in xrange(train.shape[1]-1):
+                train[:,score] = np.divide(train[:,score]-np.mean(train[:,score]), np.std(train[:,score]))
+                test[:,score] = np.divide(test[:,score]-np.mean(test[:,score]), np.std(test[:,score]))
+            
+            # Split clients & impostors
             c_train = train[train[:,2]==1]
             i_train = train[train[:,2]==0]
             c_test = test[train[:,2]==1]
@@ -46,34 +52,22 @@ def get_data():
         print "Default"
         load_default()
 
-def score_norm():
-    # u is the slope and v is the displacement of the sigmoid. z is the score
-    sigmoid = lambda u,v,z: 1 / (1 + np.exp(u*(v-z)))
 
-    # Fused scores restictions:
-    # sum(w) = 1 for all w
-    # w >= 0 for all w
-    
-    # f(u,v,w)(z) = wT * sigmoid(u,v)(z) in [0,1]  
 
 def aprox_AUR(w, clients, impostors):
-
-    # Hacer la normalización antes!!!!
     
     # Delete clients/impostors tag
     c_scores = clients[:,:-1]
     i_scores = impostors[:,:-1]
     num_scores = c_scores.shape[1]
-    heaviside = lambda x: 0.5 if x == 0 else 0 if x < 0 else 1
 
-    #sum_scores = np.sum(np.array([c-i for c in c_scores for i in i_scores]))
+    heaviside = lambda x: 0.5 if x == 0 else 0 if x < 0 else 1
     sum_scores = 0.0
     for c in c_scores:
         for i in i_scores:
             for score in xrange(num_scores):
-                #print w[score]
-                sum_scores += heaviside(w[score]*(c[score]-i[score]))
-    #sum_scores = sum(sum_scores)
+                subs_scores = w[score]*c[score]-i[score]
+                sum_scores += heaviside(subs_scores)
     aprox_aur = sum_scores / float(c_scores.shape[0] * i_scores.shape[0])
     return aprox_aur
 
