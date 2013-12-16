@@ -57,6 +57,9 @@ def score_norm():
     # f(u,v,w)(z) = wT * sigmoid(u,v)(z) in [0,1]  
 
 def aprox_AUR(w, clients, impostors):
+
+    # Hacer la normalización antes!!!!
+    
     # Delete clients/impostors tag
     c_scores = clients[:,:-1]
     i_scores = impostors[:,:-1]
