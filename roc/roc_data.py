@@ -50,7 +50,9 @@ class RocData(object):
         sum_scores = 0.0
         for c in self.c_score:
             for i in self.i_score:
-                sum_scores += heaviside(c-i)
+                subs_scores = c-i
+                sum_scores += heaviside(subs_scores)
+
         aprox_aur = (sum_scores / 
                      float(self.c_score.shape[0] * self.i_score.shape[0]))
         if plot:
