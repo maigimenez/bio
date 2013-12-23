@@ -32,11 +32,11 @@ def get_data():
 
             faces = []
             for face in faces_21x21 :
-                faces.append(face.reshape((21,21))[:-1,:-1].flatten())
+                faces.append(face.reshape((21,21))[:-1,:-1])
 
             not_faces = []
             for nface in not_faces_21x21:
-                not_faces.append(nface.reshape((21,21))[:-1,:-1].flatten())
+                not_faces.append(nface.reshape((21,21))[:-1,:-1])
 
             #plt.imshow((faces[0].reshape((20,20)))) 
             #plt.gray()
@@ -49,8 +49,11 @@ def get_data():
         print "Default"
         load_default()
 
-def PCA(data):
-    pass
+def train(data):
+    #n, d = data.shape
+    for image in data:
+        print image.shape
+
 
 if __name__ == "__main__":
     per_train = 0.8
@@ -59,35 +62,20 @@ if __name__ == "__main__":
 
     # Shuffles data, and get train and test sets for faces. 
     np.random.shuffle(faces)
-    examples, dimension = faces.shape
+    examples, d1, d2 = faces.shape
     sep = ceil(per_train*examples)
     faces_train = faces[0:sep]
     faces_test = faces[sep:] 
+    #print faces.shape, faces_test.shape, faces_train.shape
 
-    # PCA    
-    face = faces_train[0].reshape(20,20)
-    mu = np.mean(face)
-    A = face-mu
-    C = np.dot(A,A.T)
-    #Delta=eigenvalues B=eigenvectors
-    D,B = la.eigh(C) 
-    #print A.shape
-    #print D.shape, B.shape
-    ##print examples, faces_train.shape,  faces_test.shape
-    #Y = np.dot(B.T,A)
-    ##print Y.shape
-
-    #tmp = np.dot(A.T,B).T #this is the compact trick
-    #V = tmp[::-1] #reverse since last eigenvectors are the ones we want
-    #S = sqrt(D)[::-1] #reverse since eigenvalues are in increasing order
-    #print S
-
-    # Shuffles data, and get train and test sets for faces. 
+    # Shuffles data, and get train and test sets for not faces. 
     np.random.shuffle(not_faces)
-    examples, dimension = not_faces.shape
+    examples, d1, d2 = not_faces.shape
     sep = ceil(per_train*examples)
     not_faces_train = not_faces[0:sep]
     not_faces_test = not_faces[sep:]
     #print examples, not_faces_train.shape,  not_faces_test.shape
 
+    #Train
+    train(faces_train)
 
