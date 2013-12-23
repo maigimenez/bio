@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 from math import ceil,sqrt
 from numpy import linalg as la
 #from pylab import imread,subplot,imshow,title,gray,figure,show,NullLocator
-import cv2
+import cv
+import pylab
+from os import walk
+from os.path import join
 
 def load_default():
     print "TODO: load default scores"
@@ -17,7 +20,7 @@ def get_data():
 
     """
     parser = argparse.ArgumentParser(description="Solve the ROC curve")
-    parser.add_argument("-p", "--path", type=string,
+    parser.add_argument("-p", "--path",
                         help="Path with faces data", metavar="F",
                         dest="faces_path")
     try:
@@ -25,13 +28,27 @@ def get_data():
         if args.faces_path is None:
             load_default()
         else:
-            print faces
-            #faces = np.loadtxt(args.faces_file)
-            #plt.imshow((faces[0].reshape((20,20)))) 
-            #plt.gray()
-            #plt.show()
-            #print type(faces)
-            return np.array(faces), np.array(not_faces)
+            image_files = []
+            for root, dirs, files in walk(args.faces_path):
+                image_files.extend([ f for f in files if f.endswith(".pgm")])
+
+            # TODO: check if there aren't images, otherwise it will fail. 
+            # Get image dimensions
+            image = cv.LoadImage(join(args.faces_path,image_files[0]),cv.CV_LOAD_IMAGE_GRAYSCALE)
+            dim = np.asarray(cv.GetMat(image)).flatten().shape[0]
+            # Init numpy array 
+            images = np.empty([len(image_files), dim])
+            # Fill it with images
+            img_no = 0
+            for image_file in image_files:
+                image = cv.LoadImage(join(args.faces_path,image_file),cv.CV_LOAD_IMAGE_GRAYSCALE)
+                images[img_no] = np.asarray(cv.GetMat(image)).flatten()
+                img_no += 1
+                #print img.shape
+                #plt.imshow(img) 
+                #plt.gray()
+                #plt.show()
+            return images
 
     except SystemExit:
         #TODO: load default scores filenames
@@ -42,25 +59,16 @@ def PCA(data):
     pass
 
 if __name__ == "__main__":
-    per_train = 0.8
-    per_test = 1 - per_train
-    faces, not_faces = get_data() 
-
-    # Shuffles data, and get train and test sets for faces. 
-    #np.random.shuffle(faces)
-    #examples, dimension = faces.shape
-    #sep = ceil(per_train*examples)
-    #faces_train = faces[0:sep]
-    #faces_test = faces[sep:] 
+    faces = get_data() 
 
     # PCA
-    #face = faces[0]
-    #print face.shape
-    #face = faces_train[0].reshape(21,21)
-    #n,d = faces.shape
-    #mu = faces.mean(axis=0)
-    #A = faces-mu
-
+    #num_data,dim = faces[0].shape
+    #A = []
+    #for face in faces:
+    #    A.append(face.flatten())
+    #print faces.flatten()
+    #mu = A.mean(axis=0)
+    #A = A-mu
     # Covariance matrix
     #C =  np.dot(A,A.T)
     #C = np.dot(A,A.T)
@@ -79,12 +87,5 @@ if __name__ == "__main__":
     #S = sqrt(D)[::-1] #reverse since eigenvalues are in increasing order
     #print S
 
-    # Shuffles data, and get train and test sets for faces. 
-    np.random.shuffle(not_faces)
-    examples, dimension = not_faces.shape
-    sep = ceil(per_train*examples)
-    not_faces_train = not_faces[0:sep]
-    not_faces_test = not_faces[sep:]
-    #print examples, not_faces_train.shape,  not_faces_test.shape
 
 
