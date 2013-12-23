@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
@@ -55,37 +56,52 @@ def get_data():
         print "Default"
         load_default()
 
-def PCA(data):
-    pass
+def PCA(X, d_prime):
+    print X.shape
+    n,d = X.shape
+    # mu: vector promedio
+    mu = X.mean(axis=0)
+    # Restamos la media 
+    for i in range(n):
+        X[i] -= mu 
+    
+    if d>100:
+        # C: Matriz de covarianzas
+        C_prime = 1.0/d * np.dot(X,X.T)
+        #print C.shape, X.shape
+        #Delta=eigenvalues B=eigenvectors
+        D_prime,B_prime = la.eigh(C_prime) 
+        # Proyección con todas las componentes
+        tmp = np.dot(X.T,B).T
+        V = tmp[::-1]
+        print V.shape
+
+    # Ordenamos los vectores propios, primero los que más varianza recogen 
+    #order = np.argsort(D)[::-1] # sorting the eigenvalues
+    # Ordenamos los vectores propios & los valores propios
+    #B = B[:,order]
+    #D = D[order]
+    #print B.shape
+    # Cogemos únicamente los vectores propios de la proyección con d_prime componentes
+    #if d_prime<d:
+    #    B = B[:,range(d_prime)]
+    #print B.shape
+
+    #Y = np.dot(X.T,B).T
+    #print Y.shape
+    #for i in X:
+    #    print i.shape
+
+    #print B.T.shape, X.shape
+    #print X.T.shape, B.shape
+    #print B.shape, X.T.shape
+    
+    #Y = np.dot(X.T,B)
+    #print Y.shape
 
 if __name__ == "__main__":
-    faces = get_data() 
+    # X: vectores de entrenamiento
+    X = get_data() 
 
     # PCA
-    #num_data,dim = faces[0].shape
-    #A = []
-    #for face in faces:
-    #    A.append(face.flatten())
-    #print faces.flatten()
-    #mu = A.mean(axis=0)
-    #A = A-mu
-    # Covariance matrix
-    #C =  np.dot(A,A.T)
-    #C = np.dot(A,A.T)
-
-    #Delta=eigenvalues B=eigenvectors
-    #D,B = la.eigh(C) 
-
-    #print A.shape
-    #print D.shape, B.shape
-    ##print examples, faces_train.shape,  faces_test.shape
-    #Y = np.dot(B.T,A)
-    ##print Y.shape
-
-    #tmp = np.dot(A.T,B).T #this is the compact trick
-    #V = tmp[::-1] #reverse since last eigenvectors are the ones we want
-    #S = sqrt(D)[::-1] #reverse since eigenvalues are in increasing order
-    #print S
-
-
-
+    PCA(X,8)
