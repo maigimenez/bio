@@ -6,6 +6,7 @@ from math import ceil,sqrt
 from numpy import linalg as la
 #from pylab import imread,subplot,imshow,title,gray,figure,show,NullLocator
 import cv
+import cv2
 import pylab
 from os import walk
 from os.path import join
@@ -46,9 +47,10 @@ def get_data():
                 images[img_no] = np.asarray(cv.GetMat(image)).flatten()
                 img_no += 1
                 #print img.shape
-                #plt.imshow(img) 
-                #plt.gray()
-                #plt.show()
+                # create the window
+                #cv.NamedWindow('Face', cv.CV_WINDOW_AUTOSIZE)
+                #cv.ShowImage('Face', image) # show the image
+                #cv.WaitKey() # the window will be closed with a (any)key press
             return images
 
     except SystemExit:
@@ -64,33 +66,55 @@ def PCA(X, d_prime):
     # Restamos la media 
     for i in range(n):
         X[i] -= mu 
-    
+    A = X.T
+
     if d>100:
         # C: Matriz de covarianzas
-        C_prime = 1.0/d * np.dot(X,X.T)
-        #print C.shape, X.shape
+        C_prime = 1.0/d * np.dot(A.T,A)
         #Delta=eigenvalues B=eigenvectors
         D_prime,B_prime = la.eigh(C_prime) 
-        # Proyección con todas las componentes
-        tmp = np.dot(X.T,B).T
-        V = tmp[::-1]
-        print V.shape
+        B = np.dot(A, B_prime)
+        D = d/n * D_prime
+        print B.shape, D.shape
+        # Ordenamos los vectores propios, primero los que más varianza recogen 
+        order = np.argsort(D)[::-1] # sorting the eigenvalues
+        # Ordenamos los vectores propios & los valores propios
+        B = B[:,order]
+        D = D[order]
+        #V = tmp[::-1]
+        #print V.shape
+    else:
+        #C = 
+        pass
 
-    # Ordenamos los vectores propios, primero los que más varianza recogen 
-    #order = np.argsort(D)[::-1] # sorting the eigenvalues
-    # Ordenamos los vectores propios & los valores propios
-    #B = B[:,order]
-    #D = D[order]
-    #print B.shape
+    print "B: ", B.shape
+    print "X: ",X.shape
+    Y = np.empty([n, d_prime])
+    for i in range(n):
+        aux = B.T[i]*X[i]
+        Y[i] = aux[range(d_prime)] 
+
+    print "Face:", X[0].reshape(112,92)
+    #plt.imshow(X[0].reshape((92,112))) 
+    ##plt.gray()
+    #plt.show()
+    cv2.imwrite("demo.pgm",X[0].reshape(112,92))
+    cv.NamedWindow('Face', cv.CV_WINDOW_AUTOSIZE)
+    cv.ShowImage('Face', X[0].reshape(112,92)) # show the image
+    cv.WaitKey() # the window will be closed with a (any)key press
+    # Proyección con todas las componentes
+    #tmp = np.dot(B.T,A)
+    #print "tmp:", tmp.shape
+        
     # Cogemos únicamente los vectores propios de la proyección con d_prime componentes
     #if d_prime<d:
-    #    B = B[:,range(d_prime)]
-    #print B.shape
-
-    #Y = np.dot(X.T,B).T
+    #    tmp = tmp[range(d_prime),:]
+    #print tmp.shape
+    #print B.T.shape
+    #print X.shape
+    #print A.shape
+    #Y = np.dot(B.T,A)
     #print Y.shape
-    #for i in X:
-    #    print i.shape
 
     #print B.T.shape, X.shape
     #print X.T.shape, B.shape
@@ -104,4 +128,4 @@ if __name__ == "__main__":
     X = get_data() 
 
     # PCA
-    PCA(X,8)
+    PCA(X,1000)
