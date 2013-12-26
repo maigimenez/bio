@@ -10,6 +10,7 @@ import cv2
 import pylab
 from os import walk
 from os.path import join
+import Image
 
 def load_default():
     print "TODO: load default scores"
@@ -98,10 +99,15 @@ def PCA(X, d_prime):
     #plt.imshow(X[0].reshape((92,112))) 
     ##plt.gray()
     #plt.show()
-    cv2.imwrite("demo.pgm",X[0].reshape(112,92))
-    cv.NamedWindow('Face', cv.CV_WINDOW_AUTOSIZE)
-    cv.ShowImage('Face', X[0].reshape(112,92)) # show the image
-    cv.WaitKey() # the window will be closed with a (any)key press
+    image = Image.fromarray(X[0].reshape(112,92))
+    image.show()
+
+    image = Image.fromarray(Y[0].reshape(112,92))
+    image.show()
+    #cv2.imwrite("demo.pgm",X[0].reshape(112,92))
+    #cv.NamedWindow('Face', cv.CV_WINDOW_AUTOSIZE)
+    #cv.ShowImage('Face', X[0].reshape(112,92)) # show the image
+    #cv.WaitKey() # the window will be closed with a (any)key press
     # Proyección con todas las componentes
     #tmp = np.dot(B.T,A)
     #print "tmp:", tmp.shape
