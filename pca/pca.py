@@ -54,7 +54,7 @@ def get_data(per_train, per_test):
             # Fill it with images
             for tag, image_files in train_image_files.iteritems():
                 img_no = 0
-                train_images[tag] =  np.empty([len(train_image_files), dim])
+                train_images[tag] =  np.empty([len(image_files), dim])
                 for image_file in image_files:
                     image = cv.LoadImage(join(args.faces_path,tag,image_file),
                                          cv.CV_LOAD_IMAGE_GRAYSCALE)
@@ -63,7 +63,7 @@ def get_data(per_train, per_test):
 
             for tag, image_files in test_image_files.iteritems():
                 img_no = 0
-                test_images[tag] = np.empty([len(test_image_files), dim])
+                test_images[tag] = np.empty([len(image_files), dim])
                 for image_file in image_files:
                     image = cv.LoadImage(join(args.faces_path,tag,image_file),
                                          cv.CV_LOAD_IMAGE_GRAYSCALE)
@@ -83,7 +83,7 @@ def get_data(per_train, per_test):
         load_default()
 
 
-def pca_(X, d_prime):
+def pca(X, d_prime):
     n,d = X.shape
     # mu: vector promedio
     mu = X.mean(axis=0)
@@ -97,6 +97,9 @@ def pca_(X, d_prime):
         C_prime = 1.0/d * np.dot(A.T,A)
         #Delta=eigenvalues B=eigenvectors
         D_prime,B_prime = la.eigh(C_prime)
+        
+        for i in xrange(n):
+            B_prime[:,i] = B_prime[:,i]/np.linalg.norm(B_prime[:,i])
 
         # Ordenamos los vectores propios, primero los que más varianza recogen 
         order = np.argsort(D_prime)[::-1] # sorting the eigenvalues
@@ -118,41 +121,39 @@ def pca_(X, d_prime):
         D = D[order]
 
 
-    #print "B: ", B.shape
+    #print "B: ", B.shape, " - ", B[:d_prime].shape
     #print "D: ", D.shape
     #print "X: ",X.shape
+    #print "d': ",d_prime
     
-    return [D,B,mu, X]
+    #Proyectamos los datos en d'
+    B_dprime = np.dot(B[:d_prime],X)
+
+    return [B_dprime,D,B,mu,X]
 
 
-def pca(X, y, num_components=0):
-    [n,d] = X.shape
-    if (num_components <= 0) or (num_components>n):
-        num_components = n
-    mu = X.mean(axis=0)
-    X = X - mu
-    if n>d:
-        C = np.dot(X.T,X)
-        [eigenvalues,eigenvectors] = np.linalg.eigh(C)
-    else:
-        C = np.dot(X,X.T)
-        [eigenvalues,eigenvectors] = np.linalg.eigh(C)
-        eigenvectors = np.dot(X.T,eigenvectors)
-        for i in xrange(n):
-            eigenvectors[:,i] = eigenvectors[:,i]/np.linalg.norm(eigenvectors[:,i])
-    # or simply perform an economy size decomposition
-    # eigenvectors, eigenvalues, variance = np.linalg.svd(X.T, full_matrices=False)
-    # sort eigenvectors descending by their eigenvalue
-    idx = np.argsort(-eigenvalues)
-    eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:,idx]
+def predict(pca_train, test):
+    distances={}
+    #Finding weights
+    for k,v in pca_train.iteritems():
+        #Normalizar la imagen de test
+        shifted_in = test - v[3]
+        w = np.dot(v[0],v[4].T) 
+        w_in = np.dot(v[0],shifted_in)
 
-    # select only num_components
-    eigenvalues = eigenvalues[0:num_components].copy()
-    eigenvectors = eigenvectors[:,0:num_components].copy()
+        # Distancia euclídea
+        df = np.asarray(w.T - w_in)    
+        dst = np.sqrt(np.sum(df**2,  axis=0))     
+        distances[k]= dst
 
-    return [eigenvalues, eigenvectors, mu, X]
-
+    minimun = 1000000000000
+    tag = ""
+    for k in distances.keys():
+        k_min = distances[k].min()
+        if k_min < minimun :
+            minimun = distances[k].min()
+            tag=k
+    return tag
 
 if __name__ == "__main__":
     # X: vectores de entrenamiento
@@ -161,40 +162,12 @@ if __name__ == "__main__":
     train, test = get_data(per_train,per_test)
 
     # PCA
-    #[evalues, evectors, mean_image, shifted_images] = pca_(X.copy(),300)
-    #print evectors.shape, evalues.shape
-
-    #image = Image.fromarray(X[0].reshape(112,92))
-    #image.show()
-
-    #image = Image.fromarray(shifted_images[0].reshape(112,92))
-    #image.show()
-
     pca_train = {}
     for k,v in train.iteritems():
-        pca_train[k] = pca(train[k], 300)
+       pca_train[k] = pca(train[k], 1000)
 
-    [evalues, evectors, mean_image, shifted_images]=pca(test['s1'],300)
-    
-    #Normalizing input image
-    shifted_in = test['s1'] - mean_image
-
-    #Finding weights
-    w = evectors.T * shifted_images 
-    w = np.asarray(w)
-    w_in = evectors.T * shifted_in
-    w_in = np.asarray(w_in)
-
-    #Euclidean distance
-    df = np.asarray(w - w_in)                # the difference between the images
-    dst = np.sqrt(np.sum(df**2, axis=1))     # their euclidean distances
-
-    #print pca_train[k]
-    #[evalues, evectors, mean_image, shifted_images] = pca(train, 300)
-    #print evectors.shape, evalues.shape
-
-    #image = Image.fromarray(X[0].reshape(112,92))
-    #image.show()
-
-    #image = Image.fromarray(shifted_images[0].reshape(112,92))
-    #image.show()
+    #[evalues, evectors, mean_image, shifted_images]=pca(train['s1'],300)
+    for tag, images in test.iteritems():
+        for image in images:
+            predict_tag = predict(pca_train, image)
+            print tag == predict_tag
