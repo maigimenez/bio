@@ -1,8 +1,11 @@
+# -*- coding: utf-8 -*-
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from math import ceil,sqrt
 from numpy import linalg as la
+from scipy.cluster.vq import kmeans,vq, whiten
+from numpy import vstack,array
 
 def load_default():
     print "TODO: load default scores"
@@ -30,6 +33,7 @@ def get_data():
             faces_21x21 = np.loadtxt(args.faces_file)
             not_faces_21x21 = np.loadtxt(args.notfaces_file)
 
+            # Eliminar un píxel para hacer la imagen cuadrada 20x20
             faces = []
             for face in faces_21x21 :
                 faces.append(face.reshape((21,21))[:-1,:-1])
@@ -49,10 +53,62 @@ def get_data():
         print "Default"
         load_default()
 
-def train(data):
-    #n, d = data.shape
-    for image in data:
-        print image.shape
+def train(faces,not_faces):
+
+    num_faces = len(faces)
+    num_notFaces = len(not_faces)
+    #print "Faces:", len(faces)
+    #print "Not faces:", len(not_faces)
+
+    # Split into regions
+    # TODO: Check if there are no faces
+    len_w, len_h = faces[0].shape
+    num_regions = 16
+    q_levels = 256
+    region_dim = int(np.sqrt((len_w*len_h)/num_regions))
+
+    #Get the regions
+    regions = []
+    for i in range(0,len_h, region_dim):
+        for j in range(0, len_w, region_dim):
+            regions.append(((i,i+region_dim),(j,j+region_dim)))
+
+    # Split faces in regions
+    image_regions = []
+    for face in faces:
+        for region in regions:
+            image_regions.append(np.array(face[region[0][0]:region[0][1],region[1][0]:region[1][1]]).flatten())
+
+    # Split not faces in regions
+    for image in not_faces:
+        for region in regions:
+            image_regions.append(np.array(image[region[0][0]:region[0][1],region[1][0]:region[1][1]]).flatten())
+
+    # Quantification
+    data = vstack(image_regions)
+    whitened = whiten(data)
+    centroids,_ = kmeans(data,q_levels, thresh=1e-02)
+    idx,_ = vq(data,centroids)
+    faces_q = idx[:num_faces*num_regions]
+    notFaces_q = idx[num_faces*num_regions+1:]
+
+    # Estimating v_faces
+    # Using a dictionary insted of an array because if there are many 0s a lot space unused
+    v_faces = np.zeros(q_levels)
+    #v_faces = dict.fromkeys(set(faces_q), 0)
+    for q in faces_q:
+        v_faces[q] += 1
+    # Normalized
+    p_q_faces =v_faces/num_faces
+
+    v_notFaces = np.zeros(q_levels)
+    #v_notFaces = dict.fromkeys(set(notFaces_q), 0)
+    for q in notFaces_q:
+        v_notFaces[q] += 1
+    p_q_notFaces =v_notFaces/num_faces
+
+    p_pos_q_notFaces = 1.0/num_regions
+    m_faces = np.zeros((num_regions,q_levels))
 
 
 if __name__ == "__main__":
@@ -77,5 +133,5 @@ if __name__ == "__main__":
     #print examples, not_faces_train.shape,  not_faces_test.shape
 
     #Train
-    train(faces_train)
+    train(faces_train, not_faces_train)
 
