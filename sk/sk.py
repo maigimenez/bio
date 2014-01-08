@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
-from math import ceil,sqrt
-from numpy import linalg as la
-from scipy.cluster.vq import kmeans,vq, whiten
-from numpy import vstack,array
+#import matplotlib.pyplot as plt
+from math import ceil
+from scipy.cluster.vq import kmeans, vq, whiten
+from numpy import vstack
+
 
 def load_default():
     print "TODO: load default scores"
@@ -35,14 +35,14 @@ def get_data():
 
             # Eliminar un píxel para hacer la imagen cuadrada 20x20
             faces = []
-            for face in faces_21x21 :
-                faces.append(face.reshape((21,21))[:-1,:-1])
+            for face in faces_21x21:
+                faces.append(face.reshape((21, 21))[:-1, :-1])
 
             not_faces = []
             for nface in not_faces_21x21:
-                not_faces.append(nface.reshape((21,21))[:-1,:-1])
+                not_faces.append(nface.reshape((21, 21))[:-1, :-1])
 
-            #plt.imshow((faces[0].reshape((20,20)))) 
+            #plt.imshow((faces[0].reshape((20,20))))
             #plt.gray()
             #plt.show()
             #print type(faces)
@@ -53,10 +53,10 @@ def get_data():
         print "Default"
         load_default()
 
-def train(faces,not_faces):
+
+def train(faces, not_faces):
 
     num_faces = len(faces)
-    num_notFaces = len(not_faces)
     #print "Faces:", len(faces)
     #print "Not faces:", len(not_faces)
 
@@ -65,35 +65,40 @@ def train(faces,not_faces):
     len_w, len_h = faces[0].shape
     num_regions = 16
     q_levels = 256
-    region_dim = int(np.sqrt((len_w*len_h)/num_regions))
+    region_dim = int(np.sqrt((len_w * len_h) / num_regions))
 
     #Get the regions
     regions = []
-    for i in range(0,len_h, region_dim):
+    for i in range(0, len_h, region_dim):
         for j in range(0, len_w, region_dim):
-            regions.append(((i,i+region_dim),(j,j+region_dim)))
+            regions.append(((i, i + region_dim), (j, j + region_dim)))
 
     # Split faces in regions
     image_regions = []
     for face in faces:
         for region in regions:
-            image_regions.append(np.array(face[region[0][0]:region[0][1],region[1][0]:region[1][1]]).flatten())
+            image_regions.append(
+                np.array(face[region[0][0]:region[0][1],
+                              region[1][0]:region[1][1]]) .flatten())
 
     # Split not faces in regions
     for image in not_faces:
         for region in regions:
-            image_regions.append(np.array(image[region[0][0]:region[0][1],region[1][0]:region[1][1]]).flatten())
+            image_regions.append(
+                np.array(image[region[0][0]:region[0][1],
+                               region[1][0]:region[1][1]]).flatten())
 
     # Quantification
     data = vstack(image_regions)
     whitened = whiten(data)
-    centroids,_ = kmeans(data,q_levels, thresh=1e-02)
-    idx,_ = vq(data,centroids)
-    faces_q = idx[:num_faces*num_regions]
-    notFaces_q = idx[num_faces*num_regions+1:]
+    centroids, _ = kmeans(whitened, q_levels, thresh=1e-02)
+    idx, _ = vq(data, centroids)
+    faces_q = idx[:num_faces * num_regions]
+    notFaces_q = idx[num_faces * num_regions + 1:]
 
     # Estimating v_faces
-    # Using a dictionary insted of an array because if there are many 0s a lot space unused
+    # Try to use  a dictionary insted of an array 
+    # because if there are many 0s a lot space unused (spare matrix)
     v_faces = np.zeros(q_levels)
     #v_faces = dict.fromkeys(set(faces_q), 0)
     for q in faces_q:
@@ -107,9 +112,20 @@ def train(faces,not_faces):
         v_notFaces[q] += 1
     p_q_notFaces =v_notFaces/num_faces
 
+    tagged_faces = []
+    for i in xrange(0, len(faces_q), num_regions):
+        tagged_face = dict.fromkeys(xrange(num_regions))
+        for j in xrange(0, num_regions):
+            tagged_face[j] = faces_q[i+j]
+        tagged_faces.append(tagged_face)
+
     p_pos_q_notFaces = 1.0/num_regions
     m_faces = np.zeros((num_regions,q_levels))
+    for face in tagged_faces:
+        for region, q in face.iteritems():
+            m_faces[region][q] += 1
 
+    print m_faces
 
 if __name__ == "__main__":
     per_train = 0.8
