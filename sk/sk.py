@@ -97,57 +97,56 @@ def train(faces, not_faces):
     notFaces_q = idx[num_faces * num_regions + 1:]
 
     # Estimating v_faces
-    # Try to use  a dictionary insted of an array 
+    # Try to use  a dictionary insted of an array
     # because if there are many 0s a lot space unused (spare matrix)
     v_faces = np.zeros(q_levels)
     #v_faces = dict.fromkeys(set(faces_q), 0)
     for q in faces_q:
         v_faces[q] += 1
     # Normalized
-    p_q_faces =v_faces/num_faces
+    p_q_faces = v_faces / num_faces
 
     v_notFaces = np.zeros(q_levels)
     #v_notFaces = dict.fromkeys(set(notFaces_q), 0)
     for q in notFaces_q:
         v_notFaces[q] += 1
-    p_q_notFaces =v_notFaces/num_faces
+    p_q_notFaces = v_notFaces / num_faces
 
     tagged_faces = []
     for i in xrange(0, len(faces_q), num_regions):
         tagged_face = dict.fromkeys(xrange(num_regions))
         for j in xrange(0, num_regions):
-            tagged_face[j] = faces_q[i+j]
+            tagged_face[j] = faces_q[i + j]
         tagged_faces.append(tagged_face)
 
-    p_pos_q_notFaces = 1.0/num_regions
-    m_faces = np.zeros((num_regions,q_levels))
+    p_pos_q_notFaces = 1.0 / num_regions
+    m_faces = np.zeros((num_regions, q_levels))
     for face in tagged_faces:
         for region, q in face.iteritems():
             m_faces[region][q] += 1
-
     print m_faces
+
 
 if __name__ == "__main__":
     per_train = 0.8
     per_test = 1 - per_train
-    faces, not_faces = get_data() 
+    faces, not_faces = get_data()
 
-    # Shuffles data, and get train and test sets for faces. 
+    # Shuffles data, and get train and test sets for faces.
     np.random.shuffle(faces)
     examples, d1, d2 = faces.shape
-    sep = ceil(per_train*examples)
+    sep = ceil(per_train * examples)
     faces_train = faces[0:sep]
-    faces_test = faces[sep:] 
+    faces_test = faces[sep:]
     #print faces.shape, faces_test.shape, faces_train.shape
 
-    # Shuffles data, and get train and test sets for not faces. 
+    # Shuffles data, and get train and test sets for not faces.
     np.random.shuffle(not_faces)
     examples, d1, d2 = not_faces.shape
-    sep = ceil(per_train*examples)
+    sep = ceil(per_train * examples)
     not_faces_train = not_faces[0:sep]
     not_faces_test = not_faces[sep:]
     #print examples, not_faces_train.shape,  not_faces_test.shape
 
     #Train
     train(faces_train, not_faces_train)
-
