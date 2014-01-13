@@ -3,7 +3,7 @@ import numpy as np
 import ConfigParser
 from scipy import interpolate
 from roc_data import RocData
-
+from sys import exit
 
 def load_default():
     """ Load a default set of data """
@@ -33,7 +33,7 @@ def get_data():
     parser.add_argument("-c", "--clients", type=argparse.FileType('r'),
                         help="Clients filename", metavar="C",
                         dest="clients_file")
-    parser.add_argument("-i", "--impersonators", type=argparse.FileType('r'),
+    parser.add_argument("-i", "--impostors", type=argparse.FileType('r'),
                         help="Impostors filename", metavar="I",
                         dest="impostors_file")
     parser.add_argument("-fp", type=float,
@@ -54,6 +54,9 @@ def get_data():
     parser.add_argument("-d","--dprime", action='store_true',
                         help="Get dprime",
                         dest="dprime")
+    parser.add_argument("-s", "--save",
+                        help="Path where save ROC curve plot", metavar="FILENAME",
+                        dest="save")
     try:
         # Parse arguments
         args = parser.parse_args()
@@ -68,7 +71,7 @@ def get_data():
                                        dtype=float)
             data = RocData("",c_score,i_score)
         return (data, args.fp, args.fn, args.plot, args.aur, args.aur_aprox, 
-                args.dprime)
+                args.dprime, args.save)
 
     except SystemExit:
         data = load_default()
@@ -77,6 +80,11 @@ def get_data():
 
 
 def get_fn(data,fp):
+    """ Given some scores data and a false negatives rate
+    find the corresponding false positive rate in the ROC curve.
+    If the point does not exist, we will interpolate it.
+
+    """
     if fp in data.fpr:
         pos =  np.where(data.fpr==fp)
         fnr, thr =  np.mean(data.fnr[pos]), np.mean(data.thrs[pos])
@@ -99,6 +107,11 @@ def get_fn(data,fp):
 
 
 def get_fp(data,fn):
+    """ Given some scores data and a false positive rate
+    find the corresponding false negatives rate in the ROC curve.
+    If the point does not exist, we will interpolate it.
+
+    """
     if fn in data.fnr:
         pos =  np.where(data.fnr==fn)
         fpr, thr =  np.mean(data.fpr[pos]), np.mean(data.thrs[pos])
@@ -121,17 +134,22 @@ def get_fp(data,fn):
 
 
 if __name__ == "__main__":
-    data, fp, fn, plot, aur,aur_aprox, dprime = get_data() 
-    data.solve_ratios()
-    if fp >= 0.0:
-        get_fn(data,fp)
-    if fn >= 0.0:
-        get_fp(data,fn)
-    if aur:
-        data.aur(plot)
-    if aur_aprox:
-        data.aur_aprox(plot)
-    if dprime:
-        data.dprime(plot)
-    elif not aur and not aur_aprox  and not dprime and plot:
-        data.plot()
+    try:
+        data, fp, fn, plot, aur,aur_aprox, dprime, save_path = get_data() 
+        data.solve_ratios()
+        if (save_path):
+            plot = True
+        if fp >= 0.0:
+            get_fn(data,fp)
+        if fn >= 0.0:
+            get_fp(data,fn)
+        if aur:
+            data.aur(plot,save_path)
+        if aur_aprox:
+            data.aur_aprox(plot,save_path)
+        if dprime:
+            data.dprime(plot)
+        elif not aur and not aur_aprox  and not dprime and plot:
+            data.plot(save_path)
+    except ValueError, e:
+        exit()

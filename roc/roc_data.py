@@ -28,23 +28,26 @@ class RocData(object):
         # Get true negative ratio
         self.tnr = 1.0 - self.fpr
         
-    def plot(self):
+    def plot(self, save_path):
         plt.plot(self.fpr, self.tpr, '--ro',linewidth=0.75)
         plt.xlabel("FP")
         plt.ylabel("1-FN")
-        plt.show()
+        if (save_path):
+            plt.savefig(save_path)
+        else:
+            plt.show()
 
-    def aur(self, plot):
+    def aur(self, plot, save_path):
         start_time = timeit.default_timer()
         aur = np.abs(np.trapz(self.tpr, x=self.fpr))
         #simps(self.tpr, x=self.fpr)
         if plot:
-            self.plot_aur(aur)
+            self.plot_aur(aur, save_path)
         else:
             elapsed = timeit.default_timer() - start_time
             print(u"El área bajo la curva roc es igual a {0} (Coste: {1})".format(aur, elapsed))
 
-    def aur_aprox(self,plot):
+    def aur_aprox(self,plot, save_path):
         start_time = timeit.default_timer()
         heaviside = lambda x: 0.5 if x == 0 else 0 if x < 0 else 1
         sum_scores = 0.0
@@ -56,13 +59,13 @@ class RocData(object):
         aprox_aur = (sum_scores / 
                      float(self.c_score.shape[0] * self.i_score.shape[0]))
         if plot:
-            self.plot_aur(aprox_aur)
+            self.plot_aur(aprox_aur, save_path)
         else:
             elapsed = timeit.default_timer() - start_time
             print(u"El área bajo la curva roc es igual a {0} (Coste: {1})".format(aprox_aur, elapsed))
 
 
-    def plot_aur(self, aur):
+    def plot_aur(self, aur, save_path):
         a, b = self.fpr[-1], self.fpr[0]
         fig, ax = plt.subplots()
         plt.plot(self.fpr, self.tpr, 'r', linewidth=2)
@@ -74,7 +77,10 @@ class RocData(object):
                  horizontalalignment='center', fontsize=14)
         plt.xlabel("FP")
         plt.ylabel("1-FN")
-        plt.show()
+        if (save_path):
+            plt.savefig(save_path)
+        else:
+            plt.show()
 
     def dprime(self, plot):
         mu_pos = np.mean(self.c_score)
