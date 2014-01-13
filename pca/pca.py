@@ -12,6 +12,7 @@ from os.path import join,basename
 import Image
 from random import shuffle
 
+
 def load_default():
     print "TODO: load default scores"
     return None, None
@@ -22,10 +23,14 @@ def get_data(per_train, per_test):
     If there are no arguments in command line load default
 
     """
-    parser = argparse.ArgumentParser(description="Solve the ROC curve")
+    parser = argparse.ArgumentParser(description="PCA Algorithm")
     parser.add_argument("-p", "--path",
                         help="Path with faces data", metavar="F",
                         dest="faces_path")
+    parser.add_argument("-d", "--dprime",
+                        type=float,
+                        help="Number of dimensions to project", metavar="DIM",
+                        dest="d_prime")
     try:
         args = parser.parse_args()
         if args.faces_path is None:
@@ -75,7 +80,7 @@ def get_data(per_train, per_test):
                 #cv.NamedWindow('Face', cv.CV_WINDOW_AUTOSIZE)
                 #cv.ShowImage('Face', image) # show the image
                 #cv.WaitKey() # the window will be closed with a (any)key press
-            return train_images, test_images
+            return train_images, test_images, args.d_prime
 
     except SystemExit:
         #TODO: load default scores filenames
@@ -84,32 +89,34 @@ def get_data(per_train, per_test):
 
 
 def pca(X, d_prime):
-    n,d = X.shape
+    d,n = X.shape
     # mu: vector promedio
     mu = X.mean(axis=0)
     # Restamos la media 
     for i in range(n):
         X[i] -= mu 
-    A = X.T
+    A = X.copy()
 
-    if d>200:
+    if d>200 and n<3*d:
+        if d_prime > n:
+            d_prime = n
         # C: Matriz de covarianzas
         C_prime = 1.0/d * np.dot(A.T,A)
         #Delta=eigenvalues B=eigenvectors
         D_prime,B_prime = la.eigh(C_prime)
-        
+        #print "B prime: ", B_prime.shape, "- delta: ",  D_prime.shape
+
         for i in xrange(n):
             B_prime[:,i] = B_prime[:,i]/np.linalg.norm(B_prime[:,i])
 
-        # Ordenamos los vectores propios, primero los que más varianza recogen 
-        order = np.argsort(D_prime)[::-1] # sorting the eigenvalues
-        # Ordenamos los vectores propios & los valores propios
-        B_prime = B_prime[:,order]
-        D_prime = D_prime[order]
-        #print B_prime.shape, D_prime.shape
         B = np.dot(A, B_prime)
         D = d/n * D_prime
         #print "B complete: ", B.shape, "- delta: ",  D.shape
+        # Ordenamos los vectores propios, primero los que más varianza recogen 
+        order = np.argsort(D, axis=0)[::-1] 
+        # Ordenamos los vectores propios & los valores propios
+        B = B[:,order]
+        D = D[order]
 
     else:
         C = 1.0/n * np.dot(A,A.T)
@@ -120,54 +127,75 @@ def pca(X, d_prime):
         B = B[:,order]
         D = D[order]
 
-
-    #print "B: ", B.shape, " - ", B[:d_prime].shape
+    # B_dprime (d'xn)
+    #print "B: ", B.shape, " - ", B[:,:d_prime].shape
     #print "D: ", D.shape
-    #print "X: ",X.shape
+    #print "X: ", X.shape
     #print "d': ",d_prime
-    
+    #print "mu: ", mu.shape
     #Proyectamos los datos en d'
-    B_dprime = np.dot(B[:d_prime],X)
-
-    return [B_dprime,D,B,mu,X]
+    B_dprime = B[:,:d_prime]
+    y = np.dot(B_dprime.T,X)
+    #print y[0]
+    #print 
+    #print
+    #return ['B_dprime':B_dprime,D,B,mu,X]
+    return {'B':B, 'B_dprime':B_dprime,'mu':mu,'y':y}, d_prime
 
 
 def predict(pca_train, test):
+    _, n_images = test.shape
     distances={}
-    #Finding weights
-    for k,v in pca_train.iteritems():
+    for tag,pca in pca_train.iteritems():
         #Normalizar la imagen de test
-        shifted_in = test - v[3]
-        w = np.dot(v[0],v[4].T) 
-        w_in = np.dot(v[0],shifted_in)
+        #print test.T[0]
+        #print pca['mu'][0]
+        test_norm = test - pca['mu']
+        #print test_norm[0]
+        # Proyectar imagen de test
+        #print test_norm.shape, pca['B'].shape
+        y_test = np.dot(pca['B'].T,test_norm)
+        #print y_test[0]
+        #print
+        #print y_test.shape
+        minium = float('inf')
+        for i in range(n_images):
+            dif = (pca['y']-y_test[:,i])**2
+            euclidean = np.sqrt(dif.sum(axis=0))
 
-        # Distancia euclídea
-        df = np.asarray(w.T - w_in)    
-        dst = np.sqrt(np.sum(df**2,  axis=0))     
-        distances[k]= dst
+        #print dif[0]
+        #euclidean = np.sqrt(np.sum(dif**2,  axis=1)) 
+        distances[tag]= min(euclidean)
 
-    minimun = 1000000000000
-    tag = ""
-    for k in distances.keys():
-        k_min = distances[k].min()
-        if k_min < minimun :
-            minimun = distances[k].min()
-            tag=k
-    return tag
+    #print distances
+    predictions = []
+    for i in range(n_images):
+        minium = float('inf')
+        prediction = ''
+        #print
+        for tag, distance in distances.iteritems():
+            if distance < minium:
+                prediction = tag
+                minium = distance
+                #print tag
+        predictions.append(prediction)
+    return predictions
+
 
 if __name__ == "__main__":
     # X: vectores de entrenamiento
-    per_train = 0.6
+    per_train = 0.5
     per_test = 1 - per_train
-    train, test = get_data(per_train,per_test)
+    train, test, d_prime = get_data(per_train,per_test)
+    #print train['s1']
 
     # PCA
     pca_train = {}
     for k,v in train.iteritems():
-       pca_train[k] = pca(train[k], 1000)
+       pca_train[k], d_prime = pca(train[k].T, d_prime)
 
-    #[evalues, evectors, mean_image, shifted_images]=pca(train['s1'],300)
     for tag, images in test.iteritems():
-        for image in images:
-            predict_tag = predict(pca_train, image)
-            print tag == predict_tag
+        predictions = predict(pca_train, test[tag].T)
+        for image in range(len(images)):
+            print d_prime, tag, predictions[image], tag==predictions[image]
+
