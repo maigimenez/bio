@@ -38,3 +38,10 @@ nosetests.xml
 # Files too big
 data/fusion/
 data/fingerprints
+
+# Log files from latex
+*.aux
+*.lo?
+*.fdb_latexmk
+*.fls
+*.toc
