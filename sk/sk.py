@@ -93,12 +93,14 @@ def train(faces, not_faces):
     whitened = whiten(data)
     centroids, _ = kmeans(whitened, q_levels, thresh=1e-02)
     idx, _ = vq(data, centroids)
+    print "id:", idx.shape
     faces_q = idx[:num_faces * num_regions]
     notFaces_q = idx[num_faces * num_regions + 1:]
 
     # Estimating v_faces
     # Try to use  a dictionary insted of an array
     # because if there are many 0s a lot space unused (spare matrix)
+    print faces_q.shape
     v_faces = np.zeros(q_levels)
     #v_faces = dict.fromkeys(set(faces_q), 0)
     for q in faces_q:
@@ -112,6 +114,8 @@ def train(faces, not_faces):
         v_notFaces[q] += 1
     p_q_notFaces = v_notFaces / num_faces
 
+    # For every face create a dictionary where keys are the regions 
+    # and values are the quantification tag for that image and that position.
     tagged_faces = []
     for i in xrange(0, len(faces_q), num_regions):
         tagged_face = dict.fromkeys(xrange(num_regions))
@@ -120,11 +124,30 @@ def train(faces, not_faces):
         tagged_faces.append(tagged_face)
 
     p_pos_q_notFaces = 1.0 / num_regions
+
     m_faces = np.zeros((num_regions, q_levels))
     for face in tagged_faces:
         for region, q in face.iteritems():
             m_faces[region][q] += 1
-    print m_faces
+
+    print "****", m_faces
+    #m_faces[m_faces==0]=1.0
+    #print m_faces
+    sum_column = np.sum(m_faces, axis=0)
+    print sum_column, np.sum(sum_column)
+    m_faces[:,sum_column==0]=1
+    sum_column = np.sum(m_faces, axis=0)
+
+    print sum_column, np.sum(sum_column)
+
+    #m_faces = np.divide(m_faces[],np.sum(m_faces, axis=0))
+    #print m_faces
+    #i = 0
+    #for column in m_faces.T:
+    #    if sum_column[i] != 0 :
+    #        print column / sum_column[i]
+    #        print
+    #    i+=1
 
 
 if __name__ == "__main__":
