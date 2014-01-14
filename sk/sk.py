@@ -54,7 +54,31 @@ def get_data():
         load_default()
 
 
-def train(faces, not_faces):
+def get_regions(width, height, num_regions):
+    region_dim = int(np.sqrt((width * height) / num_regions))
+
+    #Get the regions
+    regions = []
+    for i in range(0, height, region_dim):
+        for j in range(0, width, region_dim):
+            regions.append(((i, i + region_dim), (j, j + region_dim)))
+
+    return regions
+
+
+def split_image(image,regions, image_regions):
+    for region in regions:
+        image_regions.append(
+            np.array(image[region[0][0]:region[0][1],
+                            region[1][0]:region[1][1]]) .flatten())
+
+
+def split_images(images,regions, image_regions):
+    for image in images:
+        split_image(image,regions, image_regions)
+
+
+def train(faces, not_faces, num_regions, q_levels):
 
     num_faces = len(faces)
     #print "Faces:", len(faces)
@@ -63,30 +87,14 @@ def train(faces, not_faces):
     # Split into regions
     # TODO: Check if there are no faces
     len_w, len_h = faces[0].shape
-    num_regions = 16
-    q_levels = 256
-    region_dim = int(np.sqrt((len_w * len_h) / num_regions))
+    regions = get_regions(len_w, len_h, num_regions)
 
-    #Get the regions
-    regions = []
-    for i in range(0, len_h, region_dim):
-        for j in range(0, len_w, region_dim):
-            regions.append(((i, i + region_dim), (j, j + region_dim)))
-
-    # Split faces in regions
+    # Get regions from train images
     image_regions = []
-    for face in faces:
-        for region in regions:
-            image_regions.append(
-                np.array(face[region[0][0]:region[0][1],
-                              region[1][0]:region[1][1]]) .flatten())
-
+    # Split faces in regions
+    split_images(faces,regions,image_regions)
     # Split not faces in regions
-    for image in not_faces:
-        for region in regions:
-            image_regions.append(
-                np.array(image[region[0][0]:region[0][1],
-                               region[1][0]:region[1][1]]).flatten())
+    split_images(not_faces,regions,image_regions)
 
     # Quantification
     data = vstack(image_regions)
@@ -138,7 +146,17 @@ def train(faces, not_faces):
     return p_q_faces, p_q_notFaces, p_pos_q_faces, p_pos_q_notFaces
 
 
+def test(image, p_q_faces, p_q_notFaces, p_pos_q_faces,
+        p_pos_q_notFaces, num_regions):
+    width, height =image.shape
+    regions = get_regions(width, height, num_regions)
+    image_regions = []
+    split_image(image, regions, image_regions)
+
+
 if __name__ == "__main__":
+    num_regions = 16
+    q_levels = 256
     per_train = 0.8
     per_test = 1 - per_train
     faces, not_faces = get_data()
@@ -160,8 +178,11 @@ if __name__ == "__main__":
     #print examples, not_faces_train.shape,  not_faces_test.shape
 
     #Train
-    (p_q_faces, p_q_notFaces,
-    p_pos_q_faces, p_pos_q_notFaces) = train(faces_train, not_faces_train)
+    (p_q_faces, p_q_notFaces, p_pos_q_faces, p_pos_q_notFaces) = train(faces_train, not_faces_train, 
+                                                                       num_regions, q_levels)
 
-
+    #Test
+    for face in faces_test:
+        test(face, p_q_faces, p_q_notFaces, p_pos_q_faces,
+            p_pos_q_notFaces, num_regions)
 
