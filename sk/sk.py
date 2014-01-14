@@ -93,14 +93,12 @@ def train(faces, not_faces):
     whitened = whiten(data)
     centroids, _ = kmeans(whitened, q_levels, thresh=1e-02)
     idx, _ = vq(data, centroids)
-    print "id:", idx.shape
     faces_q = idx[:num_faces * num_regions]
     notFaces_q = idx[num_faces * num_regions + 1:]
 
     # Estimating v_faces
     # Try to use  a dictionary insted of an array
     # because if there are many 0s a lot space unused (spare matrix)
-    print faces_q.shape
     v_faces = np.zeros(q_levels)
     #v_faces = dict.fromkeys(set(faces_q), 0)
     for q in faces_q:
@@ -125,29 +123,19 @@ def train(faces, not_faces):
 
     p_pos_q_notFaces = 1.0 / num_regions
 
-    m_faces = np.zeros((num_regions, q_levels))
+    m_faces = np.ones((num_regions, q_levels))
     for face in tagged_faces:
         for region, q in face.iteritems():
             m_faces[region][q] += 1
 
-    print "****", m_faces
-    #m_faces[m_faces==0]=1.0
-    #print m_faces
-    sum_column = np.sum(m_faces, axis=0)
-    print sum_column, np.sum(sum_column)
-    m_faces[:,sum_column==0]=1
     sum_column = np.sum(m_faces, axis=0)
 
-    print sum_column, np.sum(sum_column)
+    p_pos_q_faces = m_faces.copy()
+    rows, columns = m_faces.shape
+    for col in range(columns):
+        p_pos_q_faces = m_faces[:,col]/sum_column[col]
 
-    #m_faces = np.divide(m_faces[],np.sum(m_faces, axis=0))
-    #print m_faces
-    #i = 0
-    #for column in m_faces.T:
-    #    if sum_column[i] != 0 :
-    #        print column / sum_column[i]
-    #        print
-    #    i+=1
+    return p_q_faces, p_q_notFaces, p_pos_q_faces, p_pos_q_notFaces
 
 
 if __name__ == "__main__":
@@ -172,4 +160,8 @@ if __name__ == "__main__":
     #print examples, not_faces_train.shape,  not_faces_test.shape
 
     #Train
-    train(faces_train, not_faces_train)
+    (p_q_faces, p_q_notFaces,
+    p_pos_q_faces, p_pos_q_notFaces) = train(faces_train, not_faces_train)
+
+
+
