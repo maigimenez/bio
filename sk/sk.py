@@ -5,7 +5,7 @@ import numpy as np
 from math import ceil
 from scipy.cluster.vq import kmeans, vq, whiten
 from numpy import vstack
-
+import sys
 
 def load_default():
     print "TODO: load default scores"
@@ -77,6 +77,14 @@ def split_images(images,regions, image_regions):
     for image in images:
         split_image(image,regions, image_regions)
 
+def quantification(image_regions, q_levels):
+    # Quantification
+    data = vstack(image_regions)
+    whitened = whiten(data)
+    centroids, _ = kmeans(whitened, q_levels, thresh=1e-02)
+    idx, _ = vq(data, centroids)
+    return idx
+
 
 def train(faces, not_faces, num_regions, q_levels):
 
@@ -97,10 +105,7 @@ def train(faces, not_faces, num_regions, q_levels):
     split_images(not_faces,regions,image_regions)
 
     # Quantification
-    data = vstack(image_regions)
-    whitened = whiten(data)
-    centroids, _ = kmeans(whitened, q_levels, thresh=1e-02)
-    idx, _ = vq(data, centroids)
+    idx = quantification(image_regions, q_levels)
     faces_q = idx[:num_faces * num_regions]
     notFaces_q = idx[num_faces * num_regions + 1:]
 
@@ -138,11 +143,16 @@ def train(faces, not_faces, num_regions, q_levels):
 
     sum_column = np.sum(m_faces, axis=0)
 
+    #print m_faces[m_faces!=1.0]
     p_pos_q_faces = m_faces.copy()
     rows, columns = m_faces.shape
     for col in range(columns):
-        p_pos_q_faces = m_faces[:,col]/sum_column[col]
-
+        p_pos_q_faces[:,col] = m_faces[:,col]/sum_column[col]
+    print p_q_faces
+    print
+    print p_q_notFaces, 
+    print 
+    print p_pos_q_faces, p_pos_q_faces.shape
     return p_q_faces, p_q_notFaces, p_pos_q_faces, p_pos_q_notFaces
 
 
@@ -153,6 +163,21 @@ def test(image, p_q_faces, p_q_notFaces, p_pos_q_faces,
     image_regions = []
     split_image(image, regions, image_regions)
 
+    # Quantification
+    q = quantification(image_regions, q_levels)
+    prob = 1.0
+    for i in range(num_regions):
+        num = p_pos_q_faces[i][q[i]] * p_q_faces[q[i]]
+        den = p_q_notFaces[q[i]] * p_pos_q_notFaces 
+        if num==0.0 or den==0.0:
+            print num, den
+            print p_q_notFaces[q[i]], p_pos_q_notFaces
+        prob *= num / den
+        #print p_pos_q_faces[i][q[i]], "*", p_q_faces[q[i]], "/", p_q_notFaces[q[i]], "*", p_pos_q_notFaces
+        #, "*", p_pos_q_notFaces[i]    print
+   # print "*", len(regions)
+    #print "!", p_pos_q_faces.shape
+    return prob
 
 if __name__ == "__main__":
     num_regions = 16
@@ -180,9 +205,28 @@ if __name__ == "__main__":
     #Train
     (p_q_faces, p_q_notFaces, p_pos_q_faces, p_pos_q_notFaces) = train(faces_train, not_faces_train, 
                                                                        num_regions, q_levels)
+    sys.stdout.write('\a')
+    sys.stdout.flush()
+
+    print
+    print "********"
+    print p_q_faces[p_q_faces==0]
+    print p_q_notFaces[p_q_notFaces==0]
+    print p_pos_q_faces[p_pos_q_faces==0]
+    print "********"
 
     #Test
-    for face in faces_test:
-        test(face, p_q_faces, p_q_notFaces, p_pos_q_faces,
-            p_pos_q_notFaces, num_regions)
+#    num_faces = len(faces_test)
+#    prob_faces = np.zeros(num_faces)
+#    for i in xrange(num_faces):
+#        prob_faces[i]=test(faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+#            p_pos_q_notFaces, num_regions)
+#    print "!", np.mean(prob_faces)
+#
+#    num_notFaces = len(not_faces_test)
+#    prob_notfaces = np.zeros(num_notFaces)
+#    for i in xrange(num_notFaces):
+#        prob_notfaces[i] = test(not_faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+#            p_pos_q_notFaces, num_regions)
+#    print np.mean(prob_notfaces)
 
