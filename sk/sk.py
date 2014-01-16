@@ -7,6 +7,7 @@ from scipy.cluster.vq import kmeans, vq, whiten
 from numpy import vstack
 import sys
 
+
 def load_default():
     print "TODO: load default scores"
     return None, None
@@ -24,7 +25,12 @@ def get_data():
     parser.add_argument("-n", "--not_faces", type=argparse.FileType('r'),
                         help="Filename with not faces data", metavar="NF",
                         dest="notfaces_file")
-
+    parser.add_argument("-l", "--lambda", type=float,
+                        help="Lambda value", metavar="L",
+                        dest="lambda_value")
+    parser.add_argument("-t","--train", action='store_true',
+                        help="Train SK Algorithm",
+                        dest="train")
     try:
         args = parser.parse_args()
         if args.notfaces_file is None or args.faces_file is None:
@@ -46,7 +52,7 @@ def get_data():
             #plt.gray()
             #plt.show()
             #print type(faces)
-            return np.array(faces), np.array(not_faces)
+            return np.array(faces), np.array(not_faces), args.lambda_value, args.train
 
     except SystemExit:
         #TODO: load default scores filenames
@@ -81,7 +87,7 @@ def quantification(image_regions, q_levels):
     # Quantification
     data = vstack(image_regions)
     whitened = whiten(data)
-    centroids, _ = kmeans(whitened, q_levels, thresh=1e-02)
+    centroids, _ = kmeans(whitened, q_levels, iter=1)
     idx, _ = vq(data, centroids)
     return idx
 
@@ -112,14 +118,14 @@ def train(faces, not_faces, num_regions, q_levels):
     # Estimating v_faces
     # Try to use  a dictionary insted of an array
     # because if there are many 0s a lot space unused (spare matrix)
-    v_faces = np.zeros(q_levels)
+    v_faces = np.ones(q_levels)
     #v_faces = dict.fromkeys(set(faces_q), 0)
     for q in faces_q:
         v_faces[q] += 1
     # Normalized
     p_q_faces = v_faces / num_faces
 
-    v_notFaces = np.zeros(q_levels)
+    v_notFaces = np.ones(q_levels)
     #v_notFaces = dict.fromkeys(set(notFaces_q), 0)
     for q in notFaces_q:
         v_notFaces[q] += 1
@@ -148,11 +154,11 @@ def train(faces, not_faces, num_regions, q_levels):
     rows, columns = m_faces.shape
     for col in range(columns):
         p_pos_q_faces[:,col] = m_faces[:,col]/sum_column[col]
-    print p_q_faces
-    print
-    print p_q_notFaces, 
-    print 
-    print p_pos_q_faces, p_pos_q_faces.shape
+    #print p_q_faces
+    #print
+    #print p_q_notFaces, 
+    #print 
+    #print p_pos_q_faces, p_pos_q_faces.shape
     return p_q_faces, p_q_notFaces, p_pos_q_faces, p_pos_q_notFaces
 
 
@@ -172,7 +178,8 @@ def test(image, p_q_faces, p_q_notFaces, p_pos_q_faces,
         if num==0.0 or den==0.0:
             print num, den
             print p_q_notFaces[q[i]], p_pos_q_notFaces
-        prob *= num / den
+        else:
+            prob *= num / den
         #print p_pos_q_faces[i][q[i]], "*", p_q_faces[q[i]], "/", p_q_notFaces[q[i]], "*", p_pos_q_notFaces
         #, "*", p_pos_q_notFaces[i]    print
    # print "*", len(regions)
@@ -184,7 +191,7 @@ if __name__ == "__main__":
     q_levels = 256
     per_train = 0.8
     per_test = 1 - per_train
-    faces, not_faces = get_data()
+    faces, not_faces, lambdav, train_mode = get_data()
 
     # Shuffles data, and get train and test sets for faces.
     np.random.shuffle(faces)
@@ -192,6 +199,7 @@ if __name__ == "__main__":
     sep = ceil(per_train * examples)
     faces_train = faces[0:sep]
     faces_test = faces[sep:]
+
     #print faces.shape, faces_test.shape, faces_train.shape
 
     # Shuffles data, and get train and test sets for not faces.
@@ -203,30 +211,32 @@ if __name__ == "__main__":
     #print examples, not_faces_train.shape,  not_faces_test.shape
 
     #Train
-    (p_q_faces, p_q_notFaces, p_pos_q_faces, p_pos_q_notFaces) = train(faces_train, not_faces_train, 
-                                                                       num_regions, q_levels)
+    (p_q_faces, p_q_notFaces, 
+     p_pos_q_faces, p_pos_q_notFaces) = train(faces_train, not_faces_train, 
+                                              num_regions, q_levels)
     sys.stdout.write('\a')
     sys.stdout.flush()
 
-    print
-    print "********"
-    print p_q_faces[p_q_faces==0]
-    print p_q_notFaces[p_q_notFaces==0]
-    print p_pos_q_faces[p_pos_q_faces==0]
-    print "********"
-
-    #Test
-#    num_faces = len(faces_test)
-#    prob_faces = np.zeros(num_faces)
-#    for i in xrange(num_faces):
-#        prob_faces[i]=test(faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
-#            p_pos_q_notFaces, num_regions)
-#    print "!", np.mean(prob_faces)
+#    print
+#    print "********"
+#    print p_q_faces[p_q_faces==0], p_q_faces.shape, p_q_faces[p_q_faces==0].shape
+#    print p_q_notFaces[p_q_notFaces==0], p_q_notFaces[p_q_notFaces==0].shape, p_q_notFaces.shape
+#    print p_pos_q_faces[p_pos_q_faces==0], p_pos_q_faces[p_pos_q_faces==0].shape, p_pos_q_faces.shape
+#    print "********"
 #
-#    num_notFaces = len(not_faces_test)
-#    prob_notfaces = np.zeros(num_notFaces)
-#    for i in xrange(num_notFaces):
-#        prob_notfaces[i] = test(not_faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
-#            p_pos_q_notFaces, num_regions)
-#    print np.mean(prob_notfaces)
+    #Test
+    num_faces = len(faces_test)
+    prob_faces = np.zeros(num_faces)
+    for i in xrange(num_faces):
+        prob_faces[i]=test(faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+            p_pos_q_notFaces, num_regions)
+        #print prob_faces[i], lambdav, prob_faces[i]-lambdav
+
+    num_notFaces = len(not_faces_test)
+    prob_notfaces = np.zeros(num_notFaces)
+    for i in xrange(num_notFaces):
+        prob_notfaces[i] = test(not_faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+            p_pos_q_notFaces, num_regions)
+        print prob_notfaces[i], lambdav, prob_notfaces[i]-lambdav
+    print np.mean(prob_faces), np.mean(prob_notfaces)
 
