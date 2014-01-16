@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import timeit
 
+
 class RocData(object):
     def __init__(self, name="", c_score=None, i_score=None):
         self.name = name
@@ -27,9 +28,9 @@ class RocData(object):
                                  self.thrs), float(len(self.c_score)))
         # Get true negative ratio
         self.tnr = 1.0 - self.fpr
-        
+
     def plot(self, save_path):
-        plt.plot(self.fpr, self.tpr, '--ro',linewidth=0.75)
+        plt.plot(self.fpr, self.tpr, '--ro', linewidth=0.75)
         plt.xlabel("FP")
         plt.ylabel("1-FN")
         if (save_path):
@@ -45,25 +46,26 @@ class RocData(object):
             self.plot_aur(aur, save_path)
         else:
             elapsed = timeit.default_timer() - start_time
-            print(u"El área bajo la curva roc es igual a {0} (Coste: {1})".format(aur, elapsed))
+            print(u"El área bajo la curva roc es igual a"
+                  " {0} (Coste: {1})".format(aur, elapsed))
 
-    def aur_aprox(self,plot, save_path):
+    def aur_aprox(self, plot, save_path):
         start_time = timeit.default_timer()
         heaviside = lambda x: 0.5 if x == 0 else 0 if x < 0 else 1
         sum_scores = 0.0
         for c in self.c_score:
             for i in self.i_score:
-                subs_scores = c-i
+                subs_scores = c - i
                 sum_scores += heaviside(subs_scores)
 
-        aprox_aur = (sum_scores / 
+        aprox_aur = (sum_scores /
                      float(self.c_score.shape[0] * self.i_score.shape[0]))
         if plot:
             self.plot_aur(aprox_aur, save_path)
         else:
             elapsed = timeit.default_timer() - start_time
-            print(u"El área bajo la curva roc es igual a {0} (Coste: {1})".format(aprox_aur, elapsed))
-
+            print(u"El área bajo la curva roc es igual a"
+                  " {0} (Coste: {1})".format(aprox_aur, elapsed))
 
     def plot_aur(self, aur, save_path):
         a, b = self.fpr[-1], self.fpr[0]

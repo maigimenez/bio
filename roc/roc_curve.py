@@ -5,6 +5,7 @@ from scipy import interpolate
 from roc_data import RocData
 from sys import exit
 
+
 def load_default():
     """ Load a default set of data """
     # Read configuration file
@@ -19,7 +20,7 @@ def load_default():
     i_id, i_score = np.loadtxt(impersonators_file, unpack=True,
                                dtype=float)
     # Init RocData
-    data = RocData("",c_score,i_score)
+    data = RocData("", c_score, i_score)
     return data
 
 
@@ -28,7 +29,7 @@ def get_data():
     If there are no arguments in command line load default
 
     """
-    # Add arguments 
+    # Add arguments
     parser = argparse.ArgumentParser(description="Solve the ROC curve")
     parser.add_argument("-c", "--clients", type=argparse.FileType('r'),
                         help="Clients filename", metavar="C",
@@ -42,20 +43,23 @@ def get_data():
     parser.add_argument("-fn", type=float,
                         help="False negative", metavar="FN",
                         dest="fn")
-    parser.add_argument("-p","--plot", action='store_true',
+    parser.add_argument("-p", "--plot", action='store_true',
                         help="Make plot",
                         dest="plot")
-    parser.add_argument("-a","--aur", action='store_true',
-                        help="Get area under the ROC curve using trapezoidal rule ",
+    parser.add_argument("-a", "--aur", action='store_true',
+                        help="Get area under the ROC curve"
+                        " using trapezoidal rule ",
                         dest="aur")
-    parser.add_argument("-aA","--aurAprox", action='store_true',
-                        help="Get area under the ROC curve using an aproximation",
+    parser.add_argument("-aA", "--aurAprox", action='store_true',
+                        help="Get area under the ROC curve"
+                        " using an aproximation",
                         dest="aur_aprox")
-    parser.add_argument("-d","--dprime", action='store_true',
+    parser.add_argument("-d", "--dprime", action='store_true',
                         help="Get dprime",
                         dest="dprime")
     parser.add_argument("-s", "--save",
-                        help="Path where save ROC curve plot", metavar="FILENAME",
+                        help="Path where save ROC curve plot",
+                        metavar="FILENAME",
                         dest="save")
     try:
         # Parse arguments
@@ -69,8 +73,8 @@ def get_data():
                                        dtype=float)
             i_id, i_score = np.loadtxt(args.impostors_file, unpack=True,
                                        dtype=float)
-            data = RocData("",c_score,i_score)
-        return (data, args.fp, args.fn, args.plot, args.aur, args.aur_aprox, 
+            data = RocData("", c_score, i_score)
+        return (data, args.fp, args.fn, args.plot, args.aur, args.aur_aprox,
                 args.dprime, args.save)
 
     except SystemExit:
@@ -78,16 +82,15 @@ def get_data():
         return data, False, False, False, False, False, False
 
 
-
-def get_fn(data,fp):
+def get_fn(data, fp):
     """ Given some scores data and a false negatives rate
     find the corresponding false positive rate in the ROC curve.
     If the point does not exist, we will interpolate it.
 
     """
     if fp in data.fpr:
-        pos =  np.where(data.fpr==fp)
-        fnr, thr =  np.mean(data.fnr[pos]), np.mean(data.thrs[pos])
+        pos = np.where(data.fpr == fp)
+        fnr, thr = np.mean(data.fnr[pos]), np.mean(data.thrs[pos])
     else:
         # Set data for interpolation
         x = np.sort(data.fpr)
@@ -103,18 +106,18 @@ def get_fn(data,fp):
         f = interpolate.interp1d(x, y)
         thr = f(xnew)[0]
     print("Dado el valor de fp: {0}, el valor de fnr es: {1} y el umbral: {2} "
-          .format(fp,fnr,thr))
+          .format(fp, fnr, thr))
 
 
-def get_fp(data,fn):
+def get_fp(data, fn):
     """ Given some scores data and a false positive rate
     find the corresponding false negatives rate in the ROC curve.
     If the point does not exist, we will interpolate it.
 
     """
     if fn in data.fnr:
-        pos =  np.where(data.fnr==fn)
-        fpr, thr =  np.mean(data.fpr[pos]), np.mean(data.thrs[pos])
+        pos = np.where(data.fnr == fn)
+        fpr, thr = np.mean(data.fpr[pos]), np.mean(data.thrs[pos])
     else:
         # Set data for interpolation
         x = np.sort(data.tpr)
@@ -129,27 +132,26 @@ def get_fp(data,fn):
         f = interpolate.interp1d(x, y)
         thr = f(xnew)[0]
     print("Dado el valor de fn: {0}, el valor de fpr es: {1} y el umbral: {2} "
-          .format(fn,fpr,thr))
-
+          .format(fn, fpr, thr))
 
 
 if __name__ == "__main__":
     try:
-        data, fp, fn, plot, aur,aur_aprox, dprime, save_path = get_data() 
+        data, fp, fn, plot, aur, aur_aprox, dprime, save_path = get_data()
         data.solve_ratios()
         if (save_path):
             plot = True
         if fp >= 0.0:
-            get_fn(data,fp)
+            get_fn(data, fp)
         if fn >= 0.0:
-            get_fp(data,fn)
+            get_fp(data, fn)
         if aur:
-            data.aur(plot,save_path)
+            data.aur(plot, save_path)
         if aur_aprox:
-            data.aur_aprox(plot,save_path)
+            data.aur_aprox(plot, save_path)
         if dprime:
             data.dprime(plot)
-        elif not aur and not aur_aprox  and not dprime and plot:
+        elif not aur and not aur_aprox and not dprime and plot:
             data.plot(save_path)
     except ValueError, e:
         exit()
