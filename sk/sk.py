@@ -4,10 +4,10 @@ import argparse
 import numpy as np
 #import matplotlib.pyplot as plt
 from math import ceil
-from scipy.cluster.vq import kmeans, vq, whiten, kmeans2
+from scipy.cluster.vq import kmeans, vq, whiten
 from numpy import vstack
-import sys
 import cv
+
 
 def load_default():
     print "TODO: load default scores"
@@ -35,10 +35,10 @@ def get_data():
     parser.add_argument("-l", "--lambda", type=float,
                         help="Lambda value", metavar="L",
                         dest="lambda_value")
-    parser.add_argument("-d","--dev", action='store_true',
+    parser.add_argument("-d", "--dev", action='store_true',
                         help="Tune lambda value",
                         dest="dev")
-    parser.add_argument("-test","--test", action='store_true',
+    parser.add_argument("-test", "--test", action='store_true',
                         help="Test SK Algorithm",
                         dest="test")
     parser.add_argument("-i", "--image",
@@ -49,6 +49,7 @@ def get_data():
         if args.notfaces_file is None or args.faces_file is None:
             load_default()
         else:
+            # Load train images
             faces_21x21 = np.loadtxt(args.faces_file)
             not_faces_21x21 = np.loadtxt(args.notfaces_file)
 
@@ -56,14 +57,14 @@ def get_data():
             faces = []
             for face in faces_21x21:
                 faces.append(face.reshape((21, 21))[:-1, :-1])
-
             not_faces = []
             for nface in not_faces_21x21:
                 not_faces.append(nface.reshape((21, 21))[:-1, :-1])
 
+            # Load test images
             faces_test = []
             not_faces_test = []
-            if  args.notfaces_test_file is not None and args.faces_test_file is not None:
+            if (args.notfaces_test_file is not None and args.faces_test_file is not None):
 
                 faces_test_21x21 = np.loadtxt(args.faces_test_file)
                 not_faces_test_21x21 = np.loadtxt(args.notfaces_test_file)
@@ -71,13 +72,14 @@ def get_data():
                 # Eliminar un píxel para hacer la imagen cuadrada 20x20
                 for face in faces_test_21x21:
                     faces_test.append(face.reshape((21, 21))[:-1, :-1])
-                for nface in not_faces_21x21:
+                for nface in not_faces_test_21x21:
                     not_faces_test.append(nface.reshape((21, 21))[:-1, :-1])
 
+            # Load a test image to find faces.
             image_test = None
             if args.test_image_path:
                 image = cv.LoadImage(args.test_image_path,
-                                    cv.CV_LOAD_IMAGE_GRAYSCALE)
+                                     cv.CV_LOAD_IMAGE_GRAYSCALE)
                 image_test = np.asarray(cv.GetMat(image))
 
                 #cv.NamedWindow('Face', cv.CV_WINDOW_AUTOSIZE)
@@ -88,8 +90,9 @@ def get_data():
             #plt.gray()
             #plt.show()
             #print type(faces)
-            return (np.array(faces), np.array(not_faces), args.lambda_value, 
-                    args.test, image_test, args.dev, faces_test, not_faces_test)
+            return (np.array(faces), np.array(not_faces), args.lambda_value,
+                    args.test, image_test, args.dev,
+                    faces_test, not_faces_test)
 
     except SystemExit:
         #TODO: load default scores filenames
@@ -107,25 +110,26 @@ def get_regions(width, height, region_dim):
     return regions
 
 
-def split_image(image,regions, image_regions, flatten):
+def split_image(image, regions, image_regions, flatten):
     for region in regions:
         image_region = np.array(image[region[0][0]:region[0][1],
-                            region[1][0]:region[1][1]])
+                                      region[1][0]:region[1][1]])
         if flatten:
             image_region.flatten()
 
         image_regions.append(image_region)
 
 
-def split_images(images,regions, image_regions, flatten):
+def split_images(images, regions, image_regions, flatten):
     for image in images:
-        split_image(image,regions, image_regions, flatten)
+        split_image(image, regions, image_regions, flatten)
+
 
 def quantification(image_regions, q_levels):
     # Quantification
     data = vstack(image_regions)
     whitened = whiten(data)
-    centroids, _ = kmeans(whitened, q_levels, iter=1)
+    centroids, _ = kmeans(whitened, q_levels, iter=100)
     idx, _ = vq(data, centroids)
     return idx
 
@@ -156,7 +160,6 @@ def train(faces, not_faces, num_regions, q_levels):
     # Try to use  a dictionary insted of an array
     # because if there are many 0s a lot space unused (spare matrix)
     v_faces = np.ones(q_levels)
-    #v_faces = dict.fromkeys(set(faces_q), 0)
     for q in faces_q:
         v_faces[q] += 1
     # Normalized
