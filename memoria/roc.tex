@@ -1,0 +1,46 @@
+\section{Implementación de la curva ROC}
+
+\subsection{Uso}
+
+\begin{lstlisting}[language=bash,label=pip,caption=Instalación de un paquete utilizando pip]
+$ python roc_curve.py --help
+usage: roc_curve.py [-h] [-c C] [-i I] [-fp FP] [-fn FN] [-p] [-a] [-aA] [-d]
+                    [-s FILENAME]
+
+Solve the ROC curve
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c C, --clients C     Clients filename
+  -i I, --impostors I   Impostors filename
+  -fp FP                False positive
+  -fn FN                False negative
+  -p, --plot            Make plot
+  -a, --aur             Get area under the ROC curve using trapezoidal rule
+  -aA, --aurAprox       Get area under the ROC curve using an aproximation
+  -d, --dprime          Get dprime
+  -s FILENAME, --save FILENAME
+                        Path where save ROC curve plot
+\end{lstlisting}
+
+\subsection{Curva ROC}
+\begin{lstlisting}[language=bash,label=pip,caption=Instalación de un paquete utilizando pip]
+
+$ python roc_curve.py -c ../data/scores/scoresB_clientes.txt -i ../data/scores/scoresB_impostores.txt  -s scoresB
+$ python roc_curve.py -c ../data/scores/scoresA_clientes.txt -i ../data/scores/scoresA_impostores.txt  -s scoresA
+
+$ python roc_curve.py -c ../data/scores/scoresB_clientes.txt -i ../data/scores/scoresB_impostores.txt  -fp 0.6   
+Dado el valor de fp: 0.6, el valor de fnr es: 0.0458041958042 y el umbral: 0.00434 
+
+$ python roc_curve.py -c ../data/scores/scoresB_clientes.txt -i ../data/scores/scoresB_impostores.txt  -fn 0.3 -p
+Dado el valor de fn: 0.3, el valor de fpr es: 0.129020979021 y el umbral: 0.079034 
+
+$ python roc_curve.py -c ../data/scores/scoresB_clientes.txt -i ../data/scores/scoresB_impostores.txt  -a       
+El área bajo la curva roc es igual a 0.624729082107 (Coste: 0.000113964080811)
+
+$ python roc_curve.py -c ../data/scores/scoresB_clientes.txt -i ../data/scores/scoresB_impostores.txt  -aA
+El área bajo la curva roc es igual a 0.883082526448 (Coste: 5.70780491829)
+
+$ python roc_curve.py -c ../data/scores/scoresB_clientes.txt -i ../data/scores/scoresB_impostores.txt  -d -s dprime
+El factor dprime es 0.873481856448
+\end{lstlisting}
