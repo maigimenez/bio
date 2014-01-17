@@ -18,6 +18,7 @@ class RocData(object):
         self.tnr = None
 
     def solve_ratios(self):
+        """ Given a set of scores from a biometric system solve the ratios """
         # Get false negative ratio
         self.fnr = np.divide(map(lambda x: np.sum(self.c_score <= x),
                                  self.thrs), float(len(self.c_score)))
@@ -30,6 +31,7 @@ class RocData(object):
         self.tnr = 1.0 - self.fpr
 
     def plot(self, save_path):
+        """ Plot ROC curve """
         plt.plot(self.fpr, self.tpr, '--ro', linewidth=0.75)
         plt.xlabel("FP")
         plt.ylabel("1-FN")
@@ -39,6 +41,7 @@ class RocData(object):
             plt.show()
 
     def aur(self, plot, save_path):
+        """ Calculate AUR curve using Trapezoidal method """
         start_time = timeit.default_timer()
         aur = np.abs(np.trapz(self.tpr, x=self.fpr))
         #simps(self.tpr, x=self.fpr)
@@ -50,6 +53,7 @@ class RocData(object):
                   " {0} (Coste: {1})".format(aur, elapsed))
 
     def aur_aprox(self, plot, save_path):
+        """ Calculate AUR curve using aproximation """
         start_time = timeit.default_timer()
         heaviside = lambda x: 0.5 if x == 0 else 0 if x < 0 else 1
         sum_scores = 0.0
@@ -68,6 +72,7 @@ class RocData(object):
                   " {0} (Coste: {1})".format(aprox_aur, elapsed))
 
     def plot_aur(self, aur, save_path):
+        """ Plot AUR curve """
         a, b = self.fpr[-1], self.fpr[0]
         fig, ax = plt.subplots()
         plt.plot(self.fpr, self.tpr, 'r', linewidth=2)
@@ -85,6 +90,7 @@ class RocData(object):
             plt.show()
 
     def dprime(self, plot):
+        """ Get d' value"""
         mu_pos = np.mean(self.c_score)
         mu_neg = np.mean(self.i_score)
         var_pos = np.var(self.c_score)
