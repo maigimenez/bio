@@ -61,17 +61,18 @@ def get_data():
             for nface in not_faces_21x21:
                 not_faces.append(nface.reshape((21, 21))[:-1, :-1])
 
-            faces_test_21x21 = np.loadtxt(args.faces_test_file)
-            not_faces_test_21x21 = np.loadtxt(args.notfaces_test_file)
-
-            # Eliminar un píxel para hacer la imagen cuadrada 20x20
             faces_test = []
-            for face in faces_test_21x21:
-                faces_test.append(face.reshape((21, 21))[:-1, :-1])
-
             not_faces_test = []
-            for nface in not_faces_21x21:
-                not_faces_test.append(nface.reshape((21, 21))[:-1, :-1])
+            if  args.notfaces_test_file is not None and args.faces_test_file is not None:
+
+                faces_test_21x21 = np.loadtxt(args.faces_test_file)
+                not_faces_test_21x21 = np.loadtxt(args.notfaces_test_file)
+
+                # Eliminar un píxel para hacer la imagen cuadrada 20x20
+                for face in faces_test_21x21:
+                    faces_test.append(face.reshape((21, 21))[:-1, :-1])
+                for nface in not_faces_21x21:
+                    not_faces_test.append(nface.reshape((21, 21))[:-1, :-1])
 
             image_test = None
             if args.test_image_path:
@@ -122,22 +123,16 @@ def split_images(images,regions, image_regions, flatten):
 
 def quantification(image_regions, q_levels):
     # Quantification
-    #print 
-    #print image_regions
     data = vstack(image_regions)
-    #print data, q_levels
     whitened = whiten(data)
     centroids, _ = kmeans(whitened, q_levels, iter=1)
     idx, _ = vq(data, centroids)
-    #print "@", idx, idx.shape
     return idx
 
 
 def train(faces, not_faces, num_regions, q_levels):
 
     num_faces = len(faces)
-    #print "Faces:", len(faces)
-    #print "Not faces:", len(not_faces)
 
     # Split into regions
     # TODO: Check if there are no faces
@@ -221,10 +216,6 @@ def dev(image, p_q_faces, p_q_notFaces, p_pos_q_faces,
             prob *= num / den
     else:
         prob = 0.0
-        #print p_pos_q_faces[i][q[i]], "*", p_q_faces[q[i]], "/", p_q_notFaces[q[i]], "*", p_pos_q_notFaces
-        #, "*", p_pos_q_notFaces[i]    print
-   # print "*", len(regions)
-    #print "!", p_pos_q_faces.shape
     return prob
 
 if __name__ == "__main__":
@@ -242,23 +233,17 @@ if __name__ == "__main__":
     faces_train = faces[0:sep]
     faces_dev = faces[sep:]
 
-    #print faces.shape, faces_test.shape, faces_train.shape
-
     # Shuffles data, and get train and test sets for not faces.
     np.random.shuffle(not_faces)
     examples, d1, d2 = not_faces.shape
     sep = ceil(per_train * examples)
     not_faces_train = not_faces[0:sep]
     not_faces_dev = not_faces[sep:]
-    #print examples, not_faces_train.shape,  not_faces_test.shape
 
     #Train
     (p_q_faces, p_q_notFaces, 
      p_pos_q_faces, p_pos_q_notFaces, 
      window) = train(faces_train, not_faces_train, num_regions, q_levels)
-
-    sys.stdout.write('\a')
-    sys.stdout.flush()
 
     # Development. Used to tune lambda value properly
     if (dev_mode):
