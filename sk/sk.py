@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 #import matplotlib.pyplot as plt
 from math import ceil
-from scipy.cluster.vq import kmeans, vq, whiten
+from scipy.cluster.vq import kmeans, vq, whiten, kmeans2
 from numpy import vstack
 import sys
 import cv
@@ -19,19 +19,28 @@ def get_data():
     If there are no arguments in command line load default
 
     """
-    parser = argparse.ArgumentParser(description="Solve the ROC curve")
+    parser = argparse.ArgumentParser(description="SK Algorithm")
     parser.add_argument("-f", "--faces", type=argparse.FileType('r'),
                         help="Filename with faces data", metavar="F",
                         dest="faces_file")
     parser.add_argument("-n", "--not_faces", type=argparse.FileType('r'),
                         help="Filename with not faces data", metavar="NF",
                         dest="notfaces_file")
+    parser.add_argument("-ft", "--faces_test", type=argparse.FileType('r'),
+                        help="Filename with faces data", metavar="FT",
+                        dest="faces_test_file")
+    parser.add_argument("-nt", "--not_faces_test", type=argparse.FileType('r'),
+                        help="Filename with not faces data", metavar="NFT",
+                        dest="notfaces_test_file")
     parser.add_argument("-l", "--lambda", type=float,
                         help="Lambda value", metavar="L",
                         dest="lambda_value")
-    parser.add_argument("-t","--train", action='store_true',
-                        help="Train SK Algorithm",
-                        dest="train")
+    parser.add_argument("-d","--dev", action='store_true',
+                        help="Tune lambda value",
+                        dest="dev")
+    parser.add_argument("-test","--test", action='store_true',
+                        help="Test SK Algorithm",
+                        dest="test")
     parser.add_argument("-i", "--image",
                         help="Image where identify faces", metavar="I",
                         dest="test_image_path")
@@ -52,6 +61,18 @@ def get_data():
             for nface in not_faces_21x21:
                 not_faces.append(nface.reshape((21, 21))[:-1, :-1])
 
+            faces_test_21x21 = np.loadtxt(args.faces_test_file)
+            not_faces_test_21x21 = np.loadtxt(args.notfaces_test_file)
+
+            # Eliminar un píxel para hacer la imagen cuadrada 20x20
+            faces_test = []
+            for face in faces_test_21x21:
+                faces_test.append(face.reshape((21, 21))[:-1, :-1])
+
+            not_faces_test = []
+            for nface in not_faces_21x21:
+                not_faces_test.append(nface.reshape((21, 21))[:-1, :-1])
+
             image_test = None
             if args.test_image_path:
                 image = cv.LoadImage(args.test_image_path,
@@ -66,7 +87,8 @@ def get_data():
             #plt.gray()
             #plt.show()
             #print type(faces)
-            return np.array(faces), np.array(not_faces), args.lambda_value, args.train, image_test
+            return (np.array(faces), np.array(not_faces), args.lambda_value, 
+                    args.test, image_test, args.dev, faces_test, not_faces_test)
 
     except SystemExit:
         #TODO: load default scores filenames
@@ -189,14 +211,16 @@ def dev(image, p_q_faces, p_q_notFaces, p_pos_q_faces,
     regions = get_regions(width, height, region_dim)
     image_regions = []
     split_image(image, regions, image_regions, True)
-
     # Quantification
     q = quantification(image_regions, q_levels)
-    prob = 1.0
-    for i in range(num_regions):
-        num = p_pos_q_faces[i][q[i]] * p_q_faces[q[i]]
-        den = p_q_notFaces[q[i]] * p_pos_q_notFaces 
-        prob *= num / den
+    if not (q[q<0].shape[0]!=0 or  q[q>256].shape[0]!=0):
+        prob = 1.0
+        for i in range(num_regions):
+            num = p_pos_q_faces[i][q[i]] * p_q_faces[q[i]]
+            den = p_q_notFaces[q[i]] * p_pos_q_notFaces 
+            prob *= num / den
+    else:
+        prob = 0.0
         #print p_pos_q_faces[i][q[i]], "*", p_q_faces[q[i]], "/", p_q_notFaces[q[i]], "*", p_pos_q_notFaces
         #, "*", p_pos_q_notFaces[i]    print
    # print "*", len(regions)
@@ -208,14 +232,15 @@ if __name__ == "__main__":
     q_levels = 256
     per_train = 0.8
     per_test = 1 - per_train
-    faces, not_faces, lambdav, train_mode, image_test = get_data()
+    (faces, not_faces, lambdav, test_mode, image_test, dev_mode,
+     faces_test, not_faces_test ) = get_data()
 
     # Shuffles data, and get train and test sets for faces.
     np.random.shuffle(faces)
     examples, d1, d2 = faces.shape
     sep = ceil(per_train * examples)
     faces_train = faces[0:sep]
-    faces_test = faces[sep:]
+    faces_dev = faces[sep:]
 
     #print faces.shape, faces_test.shape, faces_train.shape
 
@@ -224,7 +249,7 @@ if __name__ == "__main__":
     examples, d1, d2 = not_faces.shape
     sep = ceil(per_train * examples)
     not_faces_train = not_faces[0:sep]
-    not_faces_test = not_faces[sep:]
+    not_faces_dev = not_faces[sep:]
     #print examples, not_faces_train.shape,  not_faces_test.shape
 
     #Train
@@ -235,80 +260,73 @@ if __name__ == "__main__":
     sys.stdout.write('\a')
     sys.stdout.flush()
 
+    # Development. Used to tune lambda value properly
+    if (dev_mode):
+        num_faces = len(faces_dev)
+        prob_faces = np.zeros(num_faces)
+        for i in xrange(num_faces):
+            prob_faces[i]=dev(faces_dev[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+                              p_pos_q_notFaces, num_regions)
+            #print prob_faces[i], lambdav, prob_faces[i]-lambdav
+        
+        #print
+        true_negatives = 0
+        false_negatives = 0
+        num_notFaces = len(not_faces_dev)
+        prob_notfaces = np.zeros(num_notFaces)
+        for i in xrange(num_notFaces):
+            prob_notfaces[i] = dev(not_faces_dev[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+                                   p_pos_q_notFaces, num_regions)
+            #print prob_notfaces[i], lambdav, prob_notfaces[i]-lambdav
+        print np.mean(prob_faces), np.mean(prob_notfaces)
 
-    #Test
-    true_positives = 0
-    false_positives = 0
-    num_faces = len(faces_test)
-    prob_faces = np.zeros(num_faces)
-    for i in xrange(num_faces):
-        prob_faces[i]=dev(faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
-            p_pos_q_notFaces, num_regions)
-#        if prob_faces[i]<lambdav:
-#            true_positives += 1
-#        else:
-#            false_positives +=1
-#        print prob_faces[i], lambdav, prob_faces[i]-lambdav
-    print
-    true_negatives = 0
-    false_negatives = 0
-    num_notFaces = len(not_faces_test)
-    prob_notfaces = np.zeros(num_notFaces)
-    for i in xrange(num_notFaces):
-        prob_notfaces[i] = dev(not_faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
-            p_pos_q_notFaces, num_regions)
-        print prob_notfaces[i], lambdav, prob_notfaces[i]-lambdav
-#        if prob_notfaces[i]>lambdav:
-#            true_negatives += 1
-#        else:
-#            false_negatives +=1
-#    print "+", true_positives, false_positives, true_positives/num_faces, false_positives/num_faces
-#    print "-", true_negatives, false_negatives, true_negatives/num_faces, false_negatives/num_faces
-#    print true_positives/num_faces, false_negatives/num_faces
-    print np.mean(prob_faces), np.mean(prob_notfaces)
+    # Development. Used to tune lambda value properly
+    if (test_mode):
+        true_positives = 0
+        false_positives = 0
+        num_faces = len(faces_test)
+        prob_faces = np.zeros(num_faces)
+        for i in xrange(num_faces):
+            prob_faces[i]=dev(faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+                              p_pos_q_notFaces, num_regions)
+            if prob_faces[i]<lambdav:
+                true_positives += 1
+            else:
+                false_positives +=1
+
+        true_negatives = 0
+        false_negatives = 0
+        num_notFaces = len(not_faces_test)
+        prob_notfaces = np.zeros(num_notFaces)
+        for i in xrange(num_notFaces):
+            prob_notfaces[i] = dev(not_faces_test[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+                                   p_pos_q_notFaces, num_regions)
+            if prob_notfaces[i]>lambdav:
+                true_negatives += 1
+            else:
+                false_negatives +=1
+        
+        print "+", true_positives, false_positives, true_positives/num_faces, false_positives/num_faces
+        print "-", true_negatives, false_negatives, true_negatives/num_faces, false_negatives/num_faces
+        print true_positives/num_faces, false_negatives/num_faces
+        #print np.mean(prob_faces), np.mean(prob_notfaces)
 
 
-
-    print window
     if image_test is not None:
-        width, height =image_test.shape
-        #print test(image_test, p_q_faces, p_q_notFaces, p_pos_q_faces,
-        #    p_pos_q_notFaces, num_regions)
-        regions = get_regions(width, height, window)
+        image_normalized = image_test - np.mean(image_test) / np.std(image_test)
+        width, height = image_normalized.shape
+        print image_normalized
+
+        regions_image = get_regions(width, height, window)
         image_windows = []
-        split_image(image_test, regions, image_windows, False)
-        print
-        print
-        for subimage in image_windows:
-            if  subimage.shape[0] == window:
-                width, height = subimage.shape
-                print 
-                region_dim = int(np.sqrt((width * height) / num_regions))
-                regions = get_regions(width, height, region_dim)
-                print regions[1]
-                image_regions = []
-                split_image(subimage, regions, image_regions, True)
-                
-                # Quantification
-                print image_regions[image_regions==0].shape
-                # data = vstack(image_regions)
-                # #print data, q_levels
-                # whitened = whiten(data)
-                # centroids, _ = kmeans(whitened, q_levels, iter=1)
-                # idx, _ = vq(data, centroids)
-
-                # q = quantification(image_regions, q_levels)
-                # print idx, q
-                # #print "!!",q
-                # #prob = 1.0
-                # for i in range(num_regions):
-                #     print q[i]
-                #     print "*",i,q[i], p_q_notFaces.shape, q.shape
-                #     num = p_pos_q_faces[i][q[i]] * p_q_faces[q[i]]
-                #     den = p_q_notFaces[q[i]] * p_pos_q_notFaces 
-                #     prob *= num / den
-
-
+        split_image(image_normalized, regions_image, image_windows, False)
+        #print
+        #print
+        for i in xrange(len(image_windows)):
+            w, h = image_windows[i].shape
+            if  w == window and h==window:
+                print dev(image_windows[i], p_q_faces, p_q_notFaces, p_pos_q_faces,
+                          p_pos_q_notFaces, num_regions)
 
                 #print dev(subimage, p_q_faces, p_q_notFaces, p_pos_q_faces,
                 #p_pos_q_notFaces, num_regions)
