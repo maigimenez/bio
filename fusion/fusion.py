@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import argparse
 import numpy as np
-from sympy.functions.special.delta_functions import Heaviside
 import matplotlib.pyplot as plt
 import itertools
-from sympy import *
+#from sympy import *
+
 
 def load_default():
     print "TODO: load default scores"
@@ -23,7 +23,7 @@ def get_data():
     parser.add_argument("-te", "--test", type=argparse.FileType('r'),
                         help="Scores for test data", metavar="TE",
                         dest="test_file")
-    parser.add_argument("-p","--plot", action='store_true',
+    parser.add_argument("-p", "--plot", action='store_true',
                         help="Make plot",
                         dest="plot")
 
@@ -32,20 +32,26 @@ def get_data():
         if args.train_file is None or args.test_file is None:
             load_default()
         else:
+            # Load train and test scores
             train  = np.loadtxt(args.train_file)
             test = np.loadtxt(args.test_file)
 
             # Normalization
-            for score in xrange(train.shape[1]-1):
-                train[:,score] = np.divide(train[:,score]-np.mean(train[:,score]), np.std(train[:,score]))
-                test[:,score] = np.divide(test[:,score]-np.mean(test[:,score]), np.std(test[:,score]))
-            
+            for score in xrange(train.shape[1] - 1):
+                train[:, score] = np.divide(
+                    train[:, score] - np.mean(train[:, score]),
+                    np.std(train[:, score]))
+                test[:, score] = np.divide(
+                    test[:, score] - np.mean(test[:, score]),
+                    np.std(test[:, score]))
+
             # Split clients & impostors
-            c_train = train[train[:,2]==1]
-            i_train = train[train[:,2]==0]
-            c_test = test[train[:,2]==1]
-            i_test = test[train[:,2]==0]
-            return (c_train,i_train), (c_test,i_test),args.plot
+            c_train = train[train[:, 2] == 1]
+            i_train = train[train[:, 2] == 0]
+            c_test = test[train[:, 2] == 1]
+            i_test = test[train[:, 2] == 0]
+
+            return (c_train, i_train), (c_test, i_test), args.plot
 
     except SystemExit:
         #TODO: load default scores filenames
@@ -53,20 +59,21 @@ def get_data():
         load_default()
 
 
-
 def aprox_AUR(w, clients, impostors):
-    
+    """ Get the aproximated area under the roc """
+
     # Delete clients/impostors tag
-    c_scores = clients[:,:-1]
-    i_scores = impostors[:,:-1]
+    c_scores = clients[:, :-1]
+    i_scores = impostors[:, :-1]
     num_scores = c_scores.shape[1]
 
+    # Step function
     heaviside = lambda x: 0.5 if x == 0 else 0 if x < 0 else 1
     sum_scores = 0.0
     for c in c_scores:
         for i in i_scores:
             for score in xrange(num_scores):
-                subs_scores = w[score]*c[score]-i[score]
+                subs_scores = w[score] * c[score] - i[score]
                 sum_scores += heaviside(subs_scores)
     aprox_aur = sum_scores / float(c_scores.shape[0] * i_scores.shape[0])
     return aprox_aur
@@ -74,59 +81,37 @@ def aprox_AUR(w, clients, impostors):
 
 def aprox_w(clients, impostors):
     # Normalizar
-    cliens = clients - np.mean(clients)/ np.std(clients)
-    impostors = impostors - np.mean(impostors)/ np.std(impostors)
+    clients = clients - np.mean(clients) / np.std(clients)
+    impostors = impostors - np.mean(impostors) / np.std(impostors)
     aurW = {}
-    wp = itertools.product(np.arange(0,1.1,0.1), repeat=2)
-    weights = [ w for w in wp if sum(w)==1.0]
+    wp = itertools.product(np.arange(0, 1.1, 0.1), repeat=2)
+    weights = [w for w in wp if sum(w) == 1.0]
     for w in weights:
-        aur = aprox_AUR(w, clients,impostors)
+        aur = aprox_AUR(w, clients, impostors)
         if aur in aurW.keys():
             aurW[aur].append(w)
         else:
             aurW[aur] = [w]
 
-    #for k,values in aurW.iteritems():
-    #    print ("AUR = %4f " % k)
-    #    for v in values:
-    #        print("\t [ %.2f, %.2f ]" % (v[0], v[1]))
-
     maxAUR = max(aurW.keys())
-    print ("El valor máximo del área bajo la curva ROC= %4f \nCon los pesos:" % maxAUR)
+    print ("El valor máximo del área bajo la curva ROC= "
+           "%4f \nCon los pesos:" % maxAUR)
     for v in aurW[maxAUR]:
         print("  [ %.2f, %.2f ]" % (v[0], v[1]))
 
 
-def min_AUR(clients, impostors):
-    # Delete clients/impostors tag
-    c_scores = clients[:,:-1]
-    i_scores = impostors[:,:-1]
-
-    # Score normalization sigmoid
-    norm_sigmoid = lambda u,v,z: 1 / (1 + np.exp(u*(v-z)))
-    sigmoid = lambda beta,z: 1 / (1 + np.exp(-(beta-z)))
-
-    z = Symbol('z')
-    diff(sigmoid)
-
-    #derJ_U = w * 
-
 if __name__ == "__main__":
-    (c_train,i_train),(c_test,i_test), p= get_data() 
-    aprox_w(c_train,i_train)
+    (c_train, i_train), (c_test, i_test), p = get_data()
+    aprox_w(c_train, i_train)
     if p:
-        f, (ax1, ax2) = plt.subplots(2,sharex=True, sharey=True)
-        #c_train = train[train[:,2]==1]
-        #i_train = train[train[:,2]==0]
+        f, (ax1, ax2) = plt.subplots(2, sharex=True, sharey=True)
         ax1.set_ylabel("Score 1")
         ax2.set_ylabel("Score 1")
         ax2.set_xlabel("Score 2")
-        ax1.plot(c_train[:,0],c_train[:,1],'o', color='green')
-        ax1.plot(i_train[:,0],i_train[:,1],'o', color='red')
+        ax1.plot(c_train[:, 0], c_train[:, 1], 'o', color='green')
+        ax1.plot(i_train[:, 0], i_train[:, 1], 'o', color='red')
         ax1.set_title('Train Scores')
-        #c_test = test[test[:,2]==1]
-        #i_test = test[test[:,2]==0]
-        ax2.plot(c_test[:,0],c_test[:,1],'o', color='green')
-        ax2.plot(i_test[:,0],i_test[:,1],'o', color='red')
+        ax2.plot(c_test[:, 0], c_test[:, 1], 'o', color='green')
+        ax2.plot(i_test[:, 0], i_test[:, 1], 'o', color='red')
         ax2.set_title('Test Scores')
         plt.show()
