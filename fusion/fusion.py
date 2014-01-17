@@ -73,6 +73,9 @@ def aprox_AUR(w, clients, impostors):
 
 
 def aprox_w(clients, impostors):
+    # Normalizar
+    cliens = clients - np.mean(clients)/ np.std(clients)
+    impostors = impostors - np.mean(impostors)/ np.std(impostors)
     aurW = {}
     wp = itertools.product(np.arange(0,1.1,0.1), repeat=2)
     weights = [ w for w in wp if sum(w)==1.0]

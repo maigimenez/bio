@@ -3,7 +3,6 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import linalg as la
-#from pylab import imread,subplot,imshow,title,gray,figure,show,NullLocator
 import cv
 import cv2
 import pylab
