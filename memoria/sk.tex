@@ -1,0 +1,49 @@
+\section{Implementación del algoritmo Schneiderman & Kanade}
+
+\subsection{ Datos de entrada }
+
+En primer lugar hemos preparado las imágenes para disponer de un conjunto de pruebas, otro para el desarrollo y un último para el test. El conjunto de entrenamiento lo empleamos para calcular las probabilidades que emplearemos en para la clasificación de una imagen en cara o no cara. El conjunto de desarrollo es un conjunto de imagenes distintas a las imágenes de entrenamiento empleadas para estimar el valor de \lambda. Finalmente tendremos un conjunto de test lo emplrearemos para calcular como funciona nuestro sistema.\par
+
+Disponemos como parámetros de entrada de una serie de imágenes para el entreamiento expersadas mediante una serie de números de tipo flotante que corresponden con el valor del nivel de gris de la imagen normalizado. El primer paso que hemos desarrollado a consistido en leer estas imágenes y separar correctamente un porcentaje para entrenamiento y otro para test. El 80\% corresponderá al entrenamiento y el 20\% restante al test.\par
+
+
+\subsection {Entrenamiento}
+Para cada una de las imágenes del test, las dividimos en regiones y cuatificamos estas regiones utilizando el algorimto c-medias con 100 iteraciones, seleccionamos 256 niveles, por lo tanto las regiones que en este punto son matrices de 5x5 se colapsan a un único valor. A partir de estos valores calculamos las probabilidades de que este valor que hemos cuantificado pertenezca a cara o no caras, es decir $P(q | caras)$ y $P(q | no cara)$, para esto hemos empleado vectores inicializaods a 0 y después normalizados, pero como el conjunto de entrenamiento que estabamos empleando era muy disperso hemos realizado un suavizado de Laplace. También deberemos calcular la probabilidad de que en una posición de la imagen dado un valor cuantificado y si es cara o no cara, es decir  $P(pos|q, caras)$ y $P(pos|q, no cara)$. Todas estas probabilidades nos las devolverá la función train que vemos en el segmento de código \ref{sk:train}, así como el tamaño de la ventana entrenado. 
+
+\begin{lstlisting}[language=python,label=roc:rocdata,caption=EDA con la que gestionar la curva ROC]
+def train(faces, not_faces, num_regions, q_levels):
+    \ldots
+    return p_q_faces, p_q_notFaces, p_pos_q_faces, p_pos_q_notFaces, width
+\end{listing}
+
+
+\subsection{Ajuste del parámetro \lambda}
+
+Una vez tenemos las probabilidades entrenadas utilizaremos el conjunto de test y calcularemos la probabilidad de que sea cara o no cara utilizando la regla de decisión descrita por Schneiderman y Kanade e imprimimos la media de las probabilidades de que la imagen sea cara y la media de las probabilidades de que la imagen no sea cara. Podemos ver un ejemplo de como ejecutar el algoritmo en modo desarrrollo en el segmento de código \ref{sk:dev}.\par
+
+\begin{lstlisting}[language=bash,label=sk:dev,caption=Ejecución en modo desarrollo]
+\$ python sk.py -f ../data/caras/dev_faces400 -n ../data/caras/dev_notFaces400 -d 
+\end{lstlisting}
+
+Estas medias las escribiremos en un fichero de texto plano, \textit{test} y mediante otro pequeño programa en python, \textit{lamda.py}, dónde leemos las probabilidades medias que hemos obtenido para caras y no caras y establecemos como lamda un valor que se encuentre en un punto medio entre la probabilidad de que  la imagen sea cara y que sea no cara. Claramente este valor se verá muy afectado por datos anómalos ya que influyen mucho en la media.\par
+
+\subsection{Prueba del sistema}
+
+Una vez determinado el valor de lambda probaremos como funciona el sistema que hemos entrenado con datos de prueba. Para esto cogemos un nuevo conjunto de datos que no hayamos empleado para entrenar el sistema y calcularemos los veredaderos y falsos positivos así como los verdaderos y falsos negativos. Para ejecutar el sistema en modo de prueba deberíamos lanzar una orden como la que vemos el segmento de código \ref{sk:test}.
+
+\begin{lstlisting}[language=bash,label=sk:test,caption=Ejecución en modo pruebas]
+\$ python sk.py -f ../data/caras/dev_faces2000 -n ../data/caras/dev_notFaces2000 -l 0.090909091113 -d -ft ../data/caras/faces_test600 -nt ../data/caras/notfaces_test600 -t-f
+\end{lstlisting}
+
+Ejecutaríamos este análisis del sistama con distintos conjuntos de prueba y obtendríamos una medida de la robustez del sistema. Sin embargo, como el conjunto de test y de prueba que hemos empleado pertenecen a una misma base de datos de imagenes el sistema se comporta demasiado favorablemente, esta sobreentrenado. Esto lo comprobamos al probar nuestro sistema de reconocimiento con una imagen distinta. Los restultados pueden encontrarse en el fichero de texto plano \textit{test\_error}
+
+\subsection{Uso del reconocedor}
+La útlima fase consiste en con el reconocedor entrenado buscar las caras dentro de una imagen.\par
+Leemos y cargamos la imagen en memoria, cogemos secciones del tamaño de la ventana que hemos entrenado ya al igual que en la fase de pruebas calculamos la probabilidad de que en una region dada haya una cara si es mayor al lambda que hemos establecido en la fase de test. \par
+
+Nos ha quedado pendiente desarrollar el dibujado de las regiones dónde ha encontrado cara, así como reducir el tamaño de la imagen para que las caras que encontremos sean invariantes al tamaño como explican Schneiderman y Kanade en su algoritmo.\par
+
+La ejecución  se realiza como vemos en el segmento de código \ref{sk:reconocimiento}
+\begin{lstlisting}[language=bash,label=sk:reconocimiento,caption=Ejecución en modo reconocedor]
+\$ python sk.py -f ../data/caras/dev_faces2000 -n ../data/caras/dev_notFaces2000 -l 0.090909091113 -t -i ../data/caras/jr.png
+\end{lstlisting}
